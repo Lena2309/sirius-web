@@ -71,7 +71,8 @@ import reactor.core.publisher.Flux;
     "org.eclipse.sirius.web.domain",
     "org.eclipse.sirius.web.application",
     "org.eclipse.sirius.web.infrastructure",
-    "org.eclipse.sirius.web.starter"
+    "org.eclipse.sirius.web.starter",
+    "org.eclipse.sirius.ai"
 })
 public class SiriusWebStarterConfiguration {
 
