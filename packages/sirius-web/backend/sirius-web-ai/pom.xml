@@ -5,74 +5,44 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.4.1</version>
-        <relativePath /> <!-- lookup parent from repository -->
+        <groupId>org.eclipse.sirius</groupId>
+        <artifactId>sirius-web-parent</artifactId>
+        <version>2024.11.4</version>
     </parent>
 
-    <groupId>org.eclipse.sirius</groupId>
     <artifactId>sirius-web-ai</artifactId>
-    <version>2025.1.7</version>
-    <name>sirius-web-ai</name>
-    <description>Sirius Web Ai</description>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-        <langchain4j.version>0.36.2</langchain4j.version>
-        <sirius.web.version>2025.1.7</sirius.web.version>
     </properties>
 
-    <!--
-    <distributionManagement>
-        <repository>
-            <id>github</id>
-            <name>Apache Maven Packages</name>
-            <url>https://maven.pkg.github.com/eclipse-sirius/sirius-web</url>
-        </repository>
-    </distributionManagement>
-    -->
-
     <dependencies>
+
         <dependency>
             <groupId>org.springframework</groupId>
             <artifactId>spring-web</artifactId>
             <version>6.2.1</version>
             <scope>compile</scope>
         </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-context</artifactId>
-            <version>6.2.1</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j</artifactId>
-            <version>${langchain4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-core</artifactId>
-            <version>${langchain4j.version}</version>
-            <scope>compile</scope>
-        </dependency>
+
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-spring-boot-starter</artifactId>
-            <version>${langchain4j.version}</version>
+            <version>0.36.2</version>
         </dependency>
+
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-open-ai-spring-boot-starter</artifactId>
-            <version>${langchain4j.version}</version>
+            <version>0.36.2</version>
         </dependency>
+
         <dependency>
             <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-anthropic</artifactId>
-            <version>${langchain4j.version}</version>
+            <artifactId>langchain4j</artifactId>
+            <version>0.36.2</version>
         </dependency>
         <dependency>
             <groupId>io.micrometer</groupId>
@@ -81,80 +51,24 @@
             <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>io.projectreactor</groupId>
-            <artifactId>reactor-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.sirius</groupId>
-            <artifactId>sirius-components-core</artifactId>
-            <version>${sirius.web.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
             <groupId>org.eclipse.sirius</groupId>
             <artifactId>sirius-components-collaborative</artifactId>
-            <version>${sirius.web.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.sirius</groupId>
-            <artifactId>sirius-components-collaborative-diagrams</artifactId>
-            <version>${sirius.web.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.sirius</groupId>
-            <artifactId>sirius-components-view-diagram</artifactId>
-            <version>${sirius.web.version}</version>
+            <version>2025.1.1</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.sirius</groupId>
             <artifactId>sirius-web-domain</artifactId>
-            <version>${sirius.web.version}</version>
+            <version>2025.1.1</version>
             <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.eclipse.sirius</groupId>
-            <artifactId>sirius-components-forms</artifactId>
-            <version>${sirius.web.version}</version>
+            <artifactId>sirius-components-collaborative-diagrams</artifactId>
+            <version>2025.1.1</version>
             <scope>compile</scope>
         </dependency>
-        <dependency>
-            <groupId>org.eclipse.sirius</groupId>
-            <artifactId>sirius-components-collaborative-forms</artifactId>
-            <version>${sirius.web.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.sirius</groupId>
-            <artifactId>sirius-web-application</artifactId>
-            <version>${sirius.web.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.sirius</groupId>
-            <artifactId>sirius-components-web</artifactId>
-            <version>${sirius.web.version}</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.eclipse.sirius</groupId>
-            <artifactId>sirius-components-representations</artifactId>
-            <version>${sirius.web.version}</version>
-            <scope>compile</scope>
-        </dependency>
+
     </dependencies>
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>21</source>
-                    <target>21</target>
-                </configuration>
-            </plugin>
-        </plugins>
-    </build>
+
 </project>
