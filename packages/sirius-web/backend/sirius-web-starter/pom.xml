@@ -46,6 +46,11 @@
 		</dependency>
 		<dependency>
 			<groupId>org.eclipse.sirius</groupId>
+			<artifactId>sirius-web-ai</artifactId>
+			<version>2024.11.4</version>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.sirius</groupId>
 			<artifactId>sirius-web-infrastructure</artifactId>
 			<version>2025.2.3</version>
 		</dependency>
