@@ -15,6 +15,8 @@
 - Improve image export
 - Add the current selection to the URL of the project workbench
 - Improve the customization of the navigation bar
+- Add support for border node initial positioning
+- Display diagram palette on right-click
 
 
 === Architectural decision records
@@ -38,6 +40,9 @@ Downstream applications which were using it to change the image of the home butt
 - https://github.com/eclipse-sirius/sirius-web/issues/4362[#4362] [sirius-web] The `editProjectNavbarSubtitleExtensionPoint` has been removed.
 Use the new frontend extension point `navigationBarCenterContributionExtensionPoint`, which is strictly more powerful, instead.
 See `PapayaExtensionRegistry.tsx` for an example of how rendering a project subtitle can be achieved with the new extension point.
+- https://github.com/eclipse-sirius/sirius-web/issues/4408[#4408] [diagram] Display diagram contextual menu (a.k.a the Palette) with right click instead of left click.
+It is not an API breaking change but a breaking change from the end-user point of view.
+
 
 === Dependency update
 
@@ -70,6 +75,11 @@ Now they are executed for some data if the data was coming from a studio too.
 - https://github.com/eclipse-sirius/sirius-web/issues/4422[#4422] [diagram] Prevent application crash when an edge path is malformed during node moves
 - https://github.com/eclipse-sirius/sirius-web/issues/4437[#4437] [diagram] Fix selection dialog not opening
 - https://github.com/eclipse-sirius/sirius-web/issues/4414[#4414] [sirius-web] Provide a default behavior to return valid JSON on `/api/rest/projects/{projectId}/commits/{commitId}/changes` REST APIs.
+- https://github.com/eclipse-sirius/sirius-web/issues/4489[#4489] [table] Fix an issue where the next page is disabled although there are still following elements
+- https://github.com/eclipse-sirius/sirius-web/issues/4310[#4310] [diagram] Fix the list node border visibility using _dash_ style
+- https://github.com/eclipse-sirius/sirius-web/issues/4390[#4390] [form] Fix an issue displaying irrelevant help text and diagnostics
+- [diagram] Replace `requestIdleCallback` with `setTimeout` for browser compatibility given the fact that `requestIdleCallback` is still a working draft
+
 
 === New Features
 
@@ -109,6 +119,8 @@ Because this new extension point offers complete control of this part of the UI,
 See `PapayaExtensionRegistry.tsx` for how the same result as before can be achieved with the new extension point.
 - https://github.com/eclipse-sirius/sirius-web/issues/4403[#4403] [table] Add support of actions in table rows context menu
 - https://github.com/eclipse-sirius/sirius-web/issues/4326[#4326] [diagram] Add quickAccessTools to diagram's palette in view dsl
+- https://github.com/eclipse-sirius/sirius-web/issues/4458[#4458] [sirius-web] Export direct edit functionalities.
+- https://github.com/eclipse-sirius/sirius-web/issues/4481[#4481] [table] Add support for cell custom target object in View DSL
 
 
 === Improvements
@@ -144,6 +156,8 @@ Note that you may need to encode special characters like `[`(by `%5B`) and `]` (
 - https://github.com/eclipse-sirius/sirius-web/issues/4352[#4352] [table] Add support to range column filters in table
 - https://github.com/eclipse-sirius/sirius-web/issues/4474[#4474] [query] Add EMF Services (eSet, eUnset) for the Query View.
 - https://github.com/eclipse-sirius/sirius-web/issues/4354[#4354] [table] Add support for cursor based pagination in table view DSL
+- https://github.com/eclipse-sirius/sirius-web/issues/4478[#4478] [sirius-web] Provide an API to search custom resource on download document action
+
 
 == v2025.1.0
 
