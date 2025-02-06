@@ -1,4 +1,4 @@
-package org.eclipse.sirius.ai.parser;
+package org.eclipse.sirius.ai.util;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
