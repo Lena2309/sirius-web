@@ -12,7 +12,6 @@ import org.eclipse.sirius.components.collaborative.diagrams.handlers.GetConnecto
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.core.api.IEditingContextSearchService;
 import org.eclipse.sirius.components.core.api.IPayload;
-import org.eclipse.sirius.components.diagrams.Edge;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -37,12 +36,12 @@ public class AiLinkTools extends AiTools {
     @Tool("Retrieve a Map of existing Links IDs structured as: [{link id : { source id, target id }}]")
     public Map<String, Map<String, String>> getExistingDiagramLinksIds() throws Exception {
         if (this.input instanceof AiRequestInput aiRequestInput) {
-            Map<String, Map<String, String>> availableLinks = new HashMap<>();
-            Map<String, String> sourceAndTargetNodes = new HashMap<>();
+            var availableLinks = new HashMap<String, Map<String, String>>();
+            var sourceAndTargetNodes = new HashMap<String, String>();
 
             this.diagram = this.getDiagram(aiRequestInput);
 
-            for (Edge edge : this.diagram.getEdges()) {
+            for (var edge : this.diagram.getEdges()) {
                 sourceAndTargetNodes.put(UUIDConverter.compress(edge.getSourceId()), UUIDConverter.compress(edge.getTargetId()));
                 availableLinks.put(UUIDConverter.compress(edge.getId()), sourceAndTargetNodes);
             }
@@ -59,14 +58,14 @@ public class AiLinkTools extends AiTools {
 //    @SystemMessage("You must use another tool to retrieve existing diagram element ids.")
     @Tool("Retrieve a list of available tools for linking objects together, structured as {link name, tool id}")
     public List<PairDiagramElement> getLinkTools(@P("The diagram object id that will serve as a source. Use another tool to retrieve the existing ones.") String sourceDiagramElementId, @P("The diagram object id that will serve as a target. Use another tool to retrieve the existing ones.") String targetDiagramElementId) throws Exception {
-        List<PairDiagramElement> connectorTools = new ArrayList<>();
+        var connectorTools = new ArrayList<PairDiagramElement>();
 
         if (this.input instanceof AiRequestInput aiRequestInput) {
             if (this.diagram == null) {
                 this.diagram = this.getDiagram(aiRequestInput);
             }
 
-            GetConnectorToolsInput connectorToolsInput = new GetConnectorToolsInput(
+            var connectorToolsInput = new GetConnectorToolsInput(
                     UUID.randomUUID(),
                     aiRequestInput.editingContextId(),
                     aiRequestInput.representationId(),
@@ -82,7 +81,7 @@ public class AiLinkTools extends AiTools {
 
             this.diagramEventHandler.handle(payloadSink, Sinks.many().unicast().onBackpressureBuffer(), this.editingContext, new DiagramContext(this.diagram), connectorToolsInput);
 
-            Mono<IPayload> payloadMono = payloadSink.asMono();
+            var payloadMono = payloadSink.asMono();
 
             payloadMono.subscribe(payload -> {
                 if (payload instanceof GetConnectorToolsSuccessPayload getConnectorToolsSuccessPayload) {
@@ -101,10 +100,10 @@ public class AiLinkTools extends AiTools {
 
     @Tool("Perform the linking operation. Returns the new link's id.")
     public String executeLinkTool(@P("The id of the operation to execute.") String linkToolId, @P("The id of the source object.") String sourceDiagramElementId, @P("The id of the target object.") String targetDiagramElementId) throws Exception {
-        AtomicReference<String> newLinkId = new AtomicReference<>("Failed to create link.");
+        var newLinkId = new AtomicReference<>("Failed to create link.");
 
         if (this.input instanceof AiRequestInput aiRequestInput) {
-            InvokeSingleClickOnTwoDiagramElementsToolInput diagramInput = new InvokeSingleClickOnTwoDiagramElementsToolInput(
+            var diagramInput = new InvokeSingleClickOnTwoDiagramElementsToolInput(
                     UUID.randomUUID(),
                     aiRequestInput.editingContextId(),
                     aiRequestInput.representationId(),
@@ -118,7 +117,7 @@ public class AiLinkTools extends AiTools {
                     List.of()
             );
 
-            AtomicReference<Mono<IPayload>> payload = new AtomicReference<>();
+            var payload = new AtomicReference<Mono<IPayload>>();
 
             this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(diagramInput.editingContextId())
                     .ifPresent(processor -> payload.set(processor.handle(diagramInput)));

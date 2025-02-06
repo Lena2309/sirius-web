@@ -48,7 +48,7 @@ public class Assistant {
             this.aiObjectTools.setInput(aiRequestInput);
             this.aiLinkTools.setInput(aiRequestInput);
 
-            List<ToolSpecification> specifications = objectToolsSpecifications;
+            var specifications = objectToolsSpecifications;
             specifications.addAll(edgeToolsSpecifications);
 
             SystemMessage systemMessage = new SystemMessage("""
@@ -59,13 +59,13 @@ public class Assistant {
             You must write in text the type of tool you need for your next request : OBJECT_TOOLS or LINK_TOOLS. At first you will have the object tools.
             """
             );
-            UserMessage userMessage = new UserMessage(aiRequestInput.request());
+            var userMessage = new UserMessage(aiRequestInput.request());
 
             this.previousMessages.add(systemMessage);
             this.previousMessages.add(userMessage);
 
             Instant  start = Instant.now();
-            Response<AiMessage> response = this.model.generate(this.previousMessages, specifications);
+            var response = this.model.generate(this.previousMessages, specifications);
             Instant finish = Instant.now();
 
             long duration = Duration.between(start, finish).toMillis();
@@ -75,10 +75,10 @@ public class Assistant {
                 this.previousMessages.add(response.content());
                 logger.info(response.content().toString());
 
-                for (ToolExecutionRequest toolExecutionRequest : response.content().toolExecutionRequests()) {
+                for (var toolExecutionRequest : response.content().toolExecutionRequests()) {
 
                     Instant  toolStart= Instant.now();
-                    ToolExecutionResultMessage  toolExecutionResultMessage = this.parseAndExecuteToolExecutionRequests(toolExecutionRequest, aiRequestInput);
+                    var  toolExecutionResultMessage = this.parseAndExecuteToolExecutionRequests(toolExecutionRequest, aiRequestInput);
                     Instant toolFinish = Instant.now();
 
                     long toolDuration = Duration.between(toolStart, toolFinish).toMillis();
@@ -106,7 +106,7 @@ public class Assistant {
     private ToolExecutionResultMessage parseAndExecuteToolExecutionRequests(ToolExecutionRequest toolExecutionRequest, IInput input) throws Exception {
         if (input instanceof AiRequestInput aiRequestInput) {
             try {
-                MethodInvoker methodInvoker = this.instanciateMethodInvoker(aiObjectTools, toolExecutionRequest);
+                var methodInvoker = this.instanciateMethodInvoker(aiObjectTools, toolExecutionRequest);
 
                 methodInvoker.prepare();
 
@@ -116,7 +116,7 @@ public class Assistant {
                 return ToolExecutionResultMessage.from(toolExecutionRequest, result.toString());
             } catch (Exception ignored) {
                 try {
-                    MethodInvoker methodInvoker = this.instanciateMethodInvoker(aiLinkTools, toolExecutionRequest);
+                    var methodInvoker = this.instanciateMethodInvoker(aiLinkTools, toolExecutionRequest);
 
                     methodInvoker.prepare();
 
@@ -133,13 +133,13 @@ public class Assistant {
     }
 
     private MethodInvoker instanciateMethodInvoker(AiTools toolClass, ToolExecutionRequest toolExecutionRequest) throws JsonProcessingException {
-        MethodInvoker methodInvoker = new MethodInvoker();
+        var methodInvoker = new MethodInvoker();
 
         methodInvoker.setTargetObject(toolClass);
 
         methodInvoker.setTargetMethod(toolExecutionRequest.name());
 
-        Map<String, Object> toolArguments = JsonParser.parseJsonToMap(toolExecutionRequest.arguments());
+        var toolArguments = JsonParser.parseJsonToMap(toolExecutionRequest.arguments());
         if (!toolArguments.isEmpty()) {
             methodInvoker.setArguments(toolArguments.values().toArray());
         }
