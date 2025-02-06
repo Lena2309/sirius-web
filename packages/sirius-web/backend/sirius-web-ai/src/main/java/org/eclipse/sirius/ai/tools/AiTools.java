@@ -53,7 +53,7 @@ public abstract class AiTools {
 
     protected IEditingContext getEditingContext(IInput input) throws Exception {
         if (input instanceof AiRequestInput aiRequestInput) {
-            Optional<IEditingContext> optionalEditingContext = this.editingContextSearchService.findById(aiRequestInput.editingContextId());
+            var optionalEditingContext = this.editingContextSearchService.findById(aiRequestInput.editingContextId());
             return optionalEditingContext.orElse(null);
         }
         throw new IllegalArgumentException("Input is not an AiRequestInput");

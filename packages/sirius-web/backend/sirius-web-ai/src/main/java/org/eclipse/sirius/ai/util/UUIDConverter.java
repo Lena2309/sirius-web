@@ -6,12 +6,12 @@ import java.util.UUID;
 
 public class UUIDConverter {
     public static String compress(String stringUUID) {
-        UUID uuid = UUID.fromString(stringUUID);
+        var uuid = UUID.fromString(stringUUID);
         return compress(uuid);
     }
 
     public static String compress(UUID uuid) {
-        ByteBuffer bb = ByteBuffer.allocate(Long.BYTES * 2);
+        var bb = ByteBuffer.allocate(Long.BYTES * 2);
         bb.putLong(uuid.getMostSignificantBits());
         bb.putLong(uuid.getLeastSignificantBits());
         byte[] array = bb.array();
@@ -19,7 +19,7 @@ public class UUIDConverter {
     }
 
     public static UUID decompress(String compressedUUID) {
-        ByteBuffer byteBuffer = ByteBuffer.wrap(Base64.getDecoder().decode(compressedUUID));
+        var byteBuffer = ByteBuffer.wrap(Base64.getDecoder().decode(compressedUUID));
         return new UUID(byteBuffer.getLong(), byteBuffer.getLong());
     }
 }
