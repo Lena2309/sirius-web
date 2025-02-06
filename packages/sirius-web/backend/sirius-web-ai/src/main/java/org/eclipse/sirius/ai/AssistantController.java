@@ -6,6 +6,7 @@ import org.eclipse.sirius.components.collaborative.diagrams.dto.DiagramLayoutDat
 import org.eclipse.sirius.components.collaborative.diagrams.dto.NodeLayoutDataInput;
 import org.eclipse.sirius.components.diagrams.layoutdata.Position;
 import org.eclipse.sirius.components.diagrams.layoutdata.Size;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,9 +28,10 @@ public class AssistantController {
     @PostMapping("/chat")
     public void chatRequest() {
         AiRequestInput aiRequestInput = new AiRequestInput(UUID.randomUUID(),
-                "Génère un data center de calculs distribués. ",
-                "cf2f699a-03d1-401f-a9ad-0581d34d15e5",
-                "6caf5618-9e4f-49b3-82aa-8eafbf8548f8",
+                "Génère moi un processeur lié à 3 data source. ",
+                "51bd63f5-bdcc-481e-96bc-4138bd0f1e66",
+                "582ff0d7-16cc-4e99-ba91-6c3b92e950de"
+                /*,
                 new DiagramLayoutDataInput(List.of(
                         new NodeLayoutDataInput(
                                 "21db3c7f-f6fe-3227-a9be-fd621582f104",
@@ -46,7 +48,9 @@ public class AssistantController {
                                 new Position(12, 43.99998753440064),
                                 new Size(150, 150),
                                 false)
-                        ), List.of()));
+                        ), List.of())
+                 */
+        );
 
         this.aiRequestEventHandler.handle(Sinks.one(), Sinks.many().unicast().onBackpressureBuffer(), null, aiRequestInput);
 
