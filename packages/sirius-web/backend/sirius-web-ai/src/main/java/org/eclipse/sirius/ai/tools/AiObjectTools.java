@@ -55,11 +55,11 @@ public class AiObjectTools extends AiTools {
     @Tool("Retrieve a List of existing Diagram Object IDs structured as: {object type, object id}")
     public List<PairDiagramElement> getExistingDiagramObjectsIds() throws Exception {
         if (this.input instanceof AiRequestInput aiRequestInput) {
-            List<PairDiagramElement> availableObjects = new ArrayList<>();
+            var availableObjects = new ArrayList<PairDiagramElement>();
 
             this.diagram = this.getDiagram(aiRequestInput);
 
-            for (Node node : this.diagram.getNodes()) {
+            for (var node : this.diagram.getNodes()) {
                 availableObjects.add(new PairDiagramElement(node.getTargetObjectKind().replace("siriusComponents://semantic?domain=flow&entity=",""), UUIDConverter.compress(node.getId())));
             }
 
@@ -71,19 +71,19 @@ public class AiObjectTools extends AiTools {
     @Tool("Retrieve the list of children elements. Useless for freshly created objects, or when creating objects at root.")
     public List<PairDiagramElement> getChildrenIds(@P("The parent object. Not the diagram root.") String parentObjectId) throws Exception {
         if (this.input instanceof AiRequestInput aiRequestInput) {
-            List<PairDiagramElement> availableChildNodes = new ArrayList<>();
+            var availableChildNodes = new ArrayList<PairDiagramElement>();
 
             if (this.diagram == null) {
                 this.diagram = this.getDiagram(aiRequestInput);
             }
 
-            Node diagramElement = this.diagram.getNodes().stream()
+            var diagramElement = this.diagram.getNodes().stream()
                     .filter(node -> Objects.equals(node.getId(), UUIDConverter.decompress(parentObjectId).toString()))
                     .findFirst()
                     .orElse(null);
 
             assert diagramElement != null;
-            for (Node node : diagramElement.getChildNodes()) {
+            for (var node : diagramElement.getChildNodes()) {
                 availableChildNodes.add(new PairDiagramElement(node.getTargetObjectKind().replace("siriusComponents://semantic?domain=flow&entity=",""), UUIDConverter.compress(node.getId())));
             }
 
@@ -99,14 +99,14 @@ public class AiObjectTools extends AiTools {
   //  @SystemMessage("You must use another tool to retrieve existing diagram element ids.")
     @Tool("Retrieve the list of available creation operations structured as {name of the object to create, operation id}")
     public List<PairDiagramElement> getAvailableObjectCreationTools(@P("The diagram object id. Use another tool to retrieve the existing ones.") String diagramObjectId) throws Exception {
-        List<PairDiagramElement> creationTools = new ArrayList<>();
+        var creationTools = new ArrayList<PairDiagramElement>();
 
         if (this.input instanceof AiRequestInput aiRequestInput) {
             if (this.diagram == null) {
                 this.diagram = this.getDiagram(aiRequestInput);
             }
 
-            GetPaletteInput paletteInput = new GetPaletteInput(
+            var paletteInput = new GetPaletteInput(
                     UUID.randomUUID(),
                     aiRequestInput.editingContextId(),
                     aiRequestInput.representationId(),
@@ -117,7 +117,7 @@ public class AiObjectTools extends AiTools {
 
             this.diagramEventHandler.handle(payloadSink, Sinks.many().unicast().onBackpressureBuffer(), this.getEditingContext(aiRequestInput), new DiagramContext(diagram), paletteInput);
 
-            Mono<IPayload> payloadMono = payloadSink.asMono();
+            var payloadMono = payloadSink.asMono();
 
             payloadMono.subscribe(payload -> {
                 if (payload instanceof GetPaletteSuccessPayload getPaletteSuccessPayload) {
@@ -125,7 +125,7 @@ public class AiObjectTools extends AiTools {
                             .filter(ToolSection.class::isInstance)
                             .filter(toolSection -> Objects.equals(((ToolSection) toolSection).label(), "Creation Tools"))
                             .forEach(toolSection -> {
-                                for (ITool tool : ((ToolSection) toolSection).tools()) {
+                                for (var tool : ((ToolSection) toolSection).tools()) {
                                     creationTools.add(new PairDiagramElement(tool.label(), UUIDConverter.compress(tool.id())));
                                 }
                             });
@@ -143,10 +143,10 @@ public class AiObjectTools extends AiTools {
    // @SystemMessage("You must use another tool to choose the correct diagram tool.")
     @Tool("Perform the creation operation. Returns the new object's id.")
     public String executeObjectTool(@P("The id of the operation to execute.") String diagramToolId, @P("The id of the context where the tool will be executed in.") String diagramObjectId) throws Exception {
-        AtomicReference<String> newObjectId = new AtomicReference<>("Failed to create object.");
+        var newObjectId = new AtomicReference<>("Failed to create object.");
 
         if (this.input instanceof AiRequestInput aiRequestInput) {
-            InvokeSingleClickOnDiagramElementToolInput diagramInput = new InvokeSingleClickOnDiagramElementToolInput(
+            var diagramInput = new InvokeSingleClickOnDiagramElementToolInput(
                     UUID.randomUUID(),
                     aiRequestInput.editingContextId(),
                     aiRequestInput.representationId(),
@@ -157,7 +157,7 @@ public class AiObjectTools extends AiTools {
                     List.of()
             );
 
-            AtomicReference<Mono<IPayload>> payload = new AtomicReference<>();
+            var payload = new AtomicReference<Mono<IPayload>>();
 
             this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(diagramInput.editingContextId())
                     .ifPresent(processor -> payload.set(processor.handle(diagramInput)));
@@ -182,7 +182,7 @@ public class AiObjectTools extends AiTools {
                 this.diagram = this.getDiagram(aiRequestInput);
             }
 
-            String labelId = diagram.getNodes().stream()
+            var labelId = diagram.getNodes().stream()
                     .filter(node -> Objects.equals(node.getId(), UUIDConverter.decompress(diagramObjectId).toString()))
                     .map(node -> {
                         List<OutsideLabel> outsideLabels = node.getOutsideLabels();
@@ -195,7 +195,7 @@ public class AiObjectTools extends AiTools {
                     .orElse(null);
 
             assert labelId != null;
-            EditLabelInput diagramInput = new EditLabelInput(
+            var diagramInput = new EditLabelInput(
                     UUID.randomUUID(),
                     aiRequestInput.editingContextId(),
                     aiRequestInput.representationId(),
@@ -218,7 +218,7 @@ public class AiObjectTools extends AiTools {
                 this.diagram = this.getDiagram(aiRequestInput);
             }
 
-            String labelId = diagram.getNodes().stream()
+            var labelId = diagram.getNodes().stream()
                     .filter(node -> Objects.equals(node.getId(), UUIDConverter.decompress(parentDiagramElementId).toString()))
                     .map(node -> {
                         String childLabelId = node.getChildNodes().stream()
@@ -232,7 +232,7 @@ public class AiObjectTools extends AiTools {
                     }).findFirst()
                     .orElse(null);
 
-            EditLabelInput diagramInput = new EditLabelInput(
+            var diagramInput = new EditLabelInput(
                     UUID.randomUUID(),
                     aiRequestInput.editingContextId(),
                     aiRequestInput.representationId(),
