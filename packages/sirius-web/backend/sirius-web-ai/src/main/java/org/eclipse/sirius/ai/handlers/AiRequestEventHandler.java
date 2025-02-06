@@ -13,16 +13,12 @@ import org.eclipse.sirius.components.core.api.IEditingContext;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.components.core.api.IPayload;
 import org.eclipse.sirius.web.domain.services.api.IMessageService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import reactor.core.publisher.Sinks;
 
 @Service
 public class AiRequestEventHandler implements IEditingContextEventHandler {
-
-    private final Logger logger = LoggerFactory.getLogger(AiRequestEventHandler.class);
 
     private final AssistantProvider assistantProvider;
 
