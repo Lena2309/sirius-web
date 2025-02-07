@@ -91,7 +91,7 @@ public class AiLinkTools extends AiTools {
         }
 
         if (connectorTools.isEmpty()) {
-            throw new Exception("Can not link those objects together, try something else.");
+            connectorTools.add(new PairDiagramElement("Can not link these objects together, try something else.", null));
         }
 
         return connectorTools;
