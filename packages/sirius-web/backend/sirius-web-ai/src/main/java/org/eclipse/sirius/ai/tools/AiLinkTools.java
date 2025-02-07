@@ -8,14 +8,15 @@ import org.eclipse.sirius.ai.util.UUIDConverter;
 import org.eclipse.sirius.components.collaborative.api.IRepresentationSearchService;
 import org.eclipse.sirius.components.collaborative.diagrams.DiagramContext;
 import org.eclipse.sirius.components.collaborative.diagrams.dto.*;
+import org.eclipse.sirius.components.collaborative.diagrams.dto.GetConnectorToolsSuccessPayload;
 import org.eclipse.sirius.components.collaborative.diagrams.handlers.GetConnectorToolsEventHandler;
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.core.api.IEditingContextSearchService;
 import org.eclipse.sirius.components.core.api.IPayload;
+import org.eclipse.sirius.components.diagrams.tools.ITool;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
-import reactor.core.publisher.Sinks;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
@@ -72,22 +73,18 @@ public class AiLinkTools extends AiTools {
                     UUIDConverter.decompress(targetDiagramElementId).toString()
             );
 
-            Sinks.One<IPayload> payloadSink = Sinks.one();
+            var payload = new AtomicReference<Mono<IPayload>>();
 
-            if (this.editingContext == null) {
-                this.editingContext = this.getEditingContext(aiRequestInput);
-            }
+            this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(connectorToolsInput.editingContextId())
+                    .ifPresent(processor -> payload.set(processor.handle(connectorToolsInput)));
 
-            this.diagramEventHandler.handle(payloadSink, Sinks.many().unicast().onBackpressureBuffer(), this.editingContext, new DiagramContext(this.diagram), connectorToolsInput);
-
-            var payloadMono = payloadSink.asMono();
-
-            payloadMono.subscribe(payload -> {
-                if (payload instanceof GetConnectorToolsSuccessPayload getConnectorToolsSuccessPayload) {
-                    getConnectorToolsSuccessPayload.connectorTools()
-                            .forEach(tool -> connectorTools.add(new PairDiagramElement(tool.getLabel(), UUIDConverter.compress(tool.getId()))));
+            payload.get().subscribe(invokePayload -> {
+                if (invokePayload instanceof GetConnectorToolsSuccessPayload successPayload) {
+                    for (ITool linkTool : successPayload.connectorTools()) {
+                        connectorTools.add(new PairDiagramElement(linkTool.getLabel(), UUIDConverter.compress(linkTool.getId())));
+                    }
                 }
-            }, throwable -> System.err.println("Failed to retrieve payload: " + throwable.getMessage()));
+            });
         }
 
         if (connectorTools.isEmpty()) {
