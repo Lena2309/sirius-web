@@ -59,7 +59,7 @@ public class Assistant {
             You must write in text the type of tool you need for your next request : OBJECT_TOOLS or LINK_TOOLS. At first you will have the object tools.
             """
             );
-            var userMessage = new UserMessage(aiRequestInput.request());
+            var userMessage = new UserMessage(aiRequestInput.prompt());
 
             this.previousMessages.add(systemMessage);
             this.previousMessages.add(userMessage);
@@ -132,7 +132,7 @@ public class Assistant {
         throw new Exception("Input not of type AiRequestInput.");
     }
 
-    private MethodInvoker instanciateMethodInvoker(AiTools toolClass, ToolExecutionRequest toolExecutionRequest) throws JsonProcessingException {
+    private MethodInvoker instanciateMethodInvoker(AiTools toolClass, ToolExecutionRequest toolExecutionRequest) throws Exception {
         var methodInvoker = new MethodInvoker();
 
         methodInvoker.setTargetObject(toolClass);

@@ -148,7 +148,7 @@ public class AiObjectTools extends AiTools {
 
             return creationTools;
         }
-        throw new Exception("Unable to get creation tools");
+        throw new Exception("Wrong type of input.");
     }
 
     // ---------------------------------------------------------------------------------------------------------------
