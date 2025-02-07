@@ -12,6 +12,7 @@ import org.eclipse.sirius.components.collaborative.diagrams.handlers.GetPaletteE
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.core.api.IEditingContextSearchService;
 
+import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.components.core.api.IPayload;
 import org.eclipse.sirius.components.diagrams.Node;
 import org.eclipse.sirius.components.diagrams.OutsideLabel;
@@ -40,20 +41,8 @@ public class AiObjectTools extends AiTools {
     //                                               DIAGRAM ELEMENTS GETTERS
     // ---------------------------------------------------------------------------------------------------------------
 
-    @Tool("Retrieve the diagram's root id.")
-    public String getDiagramRootId() throws Exception {
-        if (this.input instanceof AiRequestInput aiRequestInput) {
-            if (this.diagram == null) {
-                this.diagram = this.getDiagram(aiRequestInput);
-            }
-
-            return UUIDConverter.compress(aiRequestInput.representationId());
-        }
-        throw new Exception("The input is not of type AiRequestInput.");
-    }
-
-    @Tool("Retrieve a List of existing Diagram Object IDs structured as: {object type, object id}")
-    public List<PairDiagramElement> getExistingDiagramObjectsIds() throws Exception {
+    @Tool("Retrieve a List of existing root object IDs structured as: {object type, object id}")
+    public List<PairDiagramElement> getExistingObjectsIds() throws Exception {
         if (this.input instanceof AiRequestInput aiRequestInput) {
             var availableObjects = new ArrayList<PairDiagramElement>();
 
@@ -96,11 +85,8 @@ public class AiObjectTools extends AiTools {
     //                                                  TOOL GETTERS
     // ---------------------------------------------------------------------------------------------------------------
 
-  //  @SystemMessage("You must use another tool to retrieve existing diagram element ids.")
-    @Tool("Retrieve the list of available creation operations structured as {name of the object to create, operation id}")
-    public List<PairDiagramElement> getAvailableObjectCreationTools(@P("The diagram object id. Use another tool to retrieve the existing ones.") String diagramObjectId) throws Exception {
-        var creationTools = new ArrayList<PairDiagramElement>();
-
+    @Tool("Retrieve the list of available creation operations at root structured as {type of the object to create, operation id}")
+    public List<PairDiagramElement> getAvailableRootObjectCreationOperations() throws Exception {
         if (this.input instanceof AiRequestInput aiRequestInput) {
             if (this.diagram == null) {
                 this.diagram = this.getDiagram(aiRequestInput);
@@ -110,12 +96,40 @@ public class AiObjectTools extends AiTools {
                     UUID.randomUUID(),
                     aiRequestInput.editingContextId(),
                     aiRequestInput.representationId(),
-                    UUIDConverter.decompress(diagramObjectId).toString()
+                    aiRequestInput.representationId()
             );
+
+            return getCreationTools(paletteInput);
+        }
+        throw new Exception("The input is not of type AiRequestInput.");
+    }
+
+    @Tool("Retrieve the list of available child creation operations structured as {type of the child to create, operation id}")
+    public List<PairDiagramElement> getAvailableChildCreationOperations(@P("The parent id.") String parentId) throws Exception {
+        if (this.input instanceof AiRequestInput aiRequestInput) {
+            if (this.diagram == null) {
+                this.diagram = this.getDiagram(aiRequestInput);
+            }
+
+            var paletteInput = new GetPaletteInput(
+                    UUID.randomUUID(),
+                    aiRequestInput.editingContextId(),
+                    aiRequestInput.representationId(),
+                    UUIDConverter.decompress(parentId).toString()
+            );
+
+            return getCreationTools(paletteInput);
+        }
+        throw new Exception("The input is not of type AiRequestInput.");
+    }
+
+    private List<PairDiagramElement> getCreationTools(IInput input) throws Exception {
+        if (input instanceof GetPaletteInput paletteInput) {
+            var creationTools = new ArrayList<PairDiagramElement>();
 
             Sinks.One<IPayload> payloadSink = Sinks.one();
 
-            this.diagramEventHandler.handle(payloadSink, Sinks.many().unicast().onBackpressureBuffer(), this.getEditingContext(aiRequestInput), new DiagramContext(diagram), paletteInput);
+            this.diagramEventHandler.handle(payloadSink, Sinks.many().unicast().onBackpressureBuffer(), this.getEditingContext(this.input), new DiagramContext(diagram), paletteInput);
 
             var payloadMono = payloadSink.asMono();
 
@@ -131,32 +145,64 @@ public class AiObjectTools extends AiTools {
                             });
                 }
             }, throwable -> System.err.println("Failed to retrieve payload: " + throwable.getMessage()));
-        }
 
-        return creationTools;
+            return creationTools;
+        }
+        throw new Exception("Unable to get creation tools");
     }
 
     // ---------------------------------------------------------------------------------------------------------------
     //                                                  TOOL EXECUTIONER
     // ---------------------------------------------------------------------------------------------------------------
 
-   // @SystemMessage("You must use another tool to choose the correct diagram tool.")
-    @Tool("Perform the creation operation. Returns the new object's id.")
-    public String executeObjectTool(@P("The id of the operation to execute.") String diagramToolId, @P("The id of the context where the tool will be executed in.") String diagramObjectId) throws Exception {
-        var newObjectId = new AtomicReference<>("Failed to create object.");
-
+    @Tool("Perform the creation operation at root. Returns the new object's id.")
+    public String createObjectAtRoot(@P("The id of the operation to execute.") String operationId) throws Exception {
         if (this.input instanceof AiRequestInput aiRequestInput) {
             var diagramInput = new InvokeSingleClickOnDiagramElementToolInput(
                     UUID.randomUUID(),
                     aiRequestInput.editingContextId(),
                     aiRequestInput.representationId(),
-                    UUIDConverter.decompress(diagramObjectId).toString(),
-                    UUIDConverter.decompress(diagramToolId).toString(),
+                    aiRequestInput.representationId(),
+                    UUIDConverter.decompress(operationId).toString(),
                     0.0,
                     0.0,
                     List.of()
             );
 
+            var newObjectId = createObject(diagramInput);
+
+            this.diagram = this.getDiagram(aiRequestInput);
+            return newObjectId;
+        }
+        throw new Exception("The input is not of type AiRequestInput.");
+    }
+
+    @Tool("Perform the creation operation. Returns the new child's id.")
+    public String createChild(@P("The id of the operation to perform.") String operationId, @P("The parent's id .") String parentId) throws Exception {
+        if (this.input instanceof AiRequestInput aiRequestInput) {
+            var diagramInput = new InvokeSingleClickOnDiagramElementToolInput(
+                    UUID.randomUUID(),
+                    aiRequestInput.editingContextId(),
+                    aiRequestInput.representationId(),
+                    UUIDConverter.decompress(parentId).toString(),
+                    UUIDConverter.decompress(operationId).toString(),
+                    0.0,
+                    0.0,
+                    List.of()
+            );
+
+            var newChildId = createObject(diagramInput);
+
+            this.diagram = this.getDiagram(aiRequestInput);
+            return newChildId;
+        }
+        throw new Exception("The input is not of type AiRequestInput.");
+    }
+
+    private String createObject(IInput input) {
+        var newObjectId = new AtomicReference<>("Failed to create object.");
+
+        if (input instanceof InvokeSingleClickOnDiagramElementToolInput diagramInput) {
             var payload = new AtomicReference<Mono<IPayload>>();
 
             this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(diagramInput.editingContextId())
@@ -168,6 +214,7 @@ public class AiObjectTools extends AiTools {
                 }
             });
         }
+
         return UUIDConverter.compress(newObjectId.get());
     }
 
@@ -176,14 +223,14 @@ public class AiObjectTools extends AiTools {
     // ---------------------------------------------------------------------------------------------------------------
 
     @Tool("Edit the label of a diagram's object.")
-    public String editObjectLabel(@P("The object's label Id to edit.") String diagramObjectId, String newLabel) throws Exception {
+    public String editObjectLabel(@P("The object's label Id to edit.") String objectId, String newLabel) throws Exception {
         if (this.input instanceof AiRequestInput aiRequestInput) {
             if (this.diagram == null) {
                 this.diagram = this.getDiagram(aiRequestInput);
             }
 
             var labelId = diagram.getNodes().stream()
-                    .filter(node -> Objects.equals(node.getId(), UUIDConverter.decompress(diagramObjectId).toString()))
+                    .filter(node -> Objects.equals(node.getId(), UUIDConverter.decompress(objectId).toString()))
                     .map(node -> {
                         List<OutsideLabel> outsideLabels = node.getOutsideLabels();
                         if(!outsideLabels.isEmpty()) {
@@ -212,17 +259,17 @@ public class AiObjectTools extends AiTools {
     }
 
     @Tool("Edit the label of an object's child.")
-    public String editChildLabel(String parentDiagramElementId, String childDiagramElementId, String newLabel) throws Exception {
+    public String editChildLabel(String parentId, String childId, String newLabel) throws Exception {
         if (this.input instanceof AiRequestInput aiRequestInput) {
             if (this.diagram == null) {
                 this.diagram = this.getDiagram(aiRequestInput);
             }
 
             var labelId = diagram.getNodes().stream()
-                    .filter(node -> Objects.equals(node.getId(), UUIDConverter.decompress(parentDiagramElementId).toString()))
+                    .filter(node -> Objects.equals(node.getId(), UUIDConverter.decompress(parentId).toString()))
                     .map(node -> {
                         String childLabelId = node.getChildNodes().stream()
-                                .filter(childNode -> Objects.equals(childNode.getId(), UUIDConverter.decompress(childDiagramElementId).toString()))
+                                .filter(childNode -> Objects.equals(childNode.getId(), UUIDConverter.decompress(childId).toString()))
                                 .map(childNode -> childNode.getOutsideLabels().get(0).id())
                                 .findFirst()
                                 .orElse(null);

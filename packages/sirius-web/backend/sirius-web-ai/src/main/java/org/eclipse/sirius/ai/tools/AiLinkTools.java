@@ -33,7 +33,7 @@ public class AiLinkTools extends AiTools {
     //                                               DIAGRAM ELEMENTS GETTERS
     // ---------------------------------------------------------------------------------------------------------------
 
-    @Tool("Retrieve a Map of existing Links IDs structured as: [{link id : { source id, target id }}]")
+    @Tool("Retrieve a Map of existing Links IDs structured as: {link id, { source id, target id }}")
     public Map<String, Map<String, String>> getExistingDiagramLinksIds() throws Exception {
         if (this.input instanceof AiRequestInput aiRequestInput) {
             var availableLinks = new HashMap<String, Map<String, String>>();
@@ -55,9 +55,8 @@ public class AiLinkTools extends AiTools {
     //                                                  TOOL GETTERS
     // ---------------------------------------------------------------------------------------------------------------
 
-//    @SystemMessage("You must use another tool to retrieve existing diagram element ids.")
-    @Tool("Retrieve a list of available tools for linking objects together, structured as {link name, tool id}")
-    public List<PairDiagramElement> getLinkTools(@P("The diagram object id that will serve as a source. Use another tool to retrieve the existing ones.") String sourceDiagramElementId, @P("The diagram object id that will serve as a target. Use another tool to retrieve the existing ones.") String targetDiagramElementId) throws Exception {
+    @Tool("Retrieve a list of available operations for linking objects together, structured as {link name, operation id}")
+    public List<PairDiagramElement> getLinkOperations(@P("The object id that will serve as source.") String sourceDiagramElementId, @P("The object id that will serve as target.") String targetDiagramElementId) throws Exception {
         var connectorTools = new ArrayList<PairDiagramElement>();
 
         if (this.input instanceof AiRequestInput aiRequestInput) {
@@ -91,6 +90,10 @@ public class AiLinkTools extends AiTools {
             }, throwable -> System.err.println("Failed to retrieve payload: " + throwable.getMessage()));
         }
 
+        if (connectorTools.isEmpty()) {
+            throw new Exception("Can not link those objects together, try something else.");
+        }
+
         return connectorTools;
     }
 
@@ -99,7 +102,7 @@ public class AiLinkTools extends AiTools {
     // ---------------------------------------------------------------------------------------------------------------
 
     @Tool("Perform the linking operation. Returns the new link's id.")
-    public String executeLinkTool(@P("The id of the operation to execute.") String linkToolId, @P("The id of the source object.") String sourceDiagramElementId, @P("The id of the target object.") String targetDiagramElementId) throws Exception {
+    public String linkObjects(@P("The id of the operation to perform.") String linkOperationId, @P("The id of the source object.") String sourceObjectId, @P("The id of the target object.") String targetObjectId) throws Exception {
         var newLinkId = new AtomicReference<>("Failed to create link.");
 
         if (this.input instanceof AiRequestInput aiRequestInput) {
@@ -107,13 +110,13 @@ public class AiLinkTools extends AiTools {
                     UUID.randomUUID(),
                     aiRequestInput.editingContextId(),
                     aiRequestInput.representationId(),
-                    sourceDiagramElementId,
-                    targetDiagramElementId,
+                    sourceObjectId,
+                    targetObjectId,
                     0.0,
                     0.0,
                     0.0,
                     0.0,
-                    linkToolId,
+                    linkOperationId,
                     List.of()
             );
 
