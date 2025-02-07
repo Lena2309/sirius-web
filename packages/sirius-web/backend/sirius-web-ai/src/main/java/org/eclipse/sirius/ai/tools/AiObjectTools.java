@@ -126,16 +126,14 @@ public class AiObjectTools extends AiTools {
     private List<PairDiagramElement> getCreationTools(IInput input) throws Exception {
         if (input instanceof GetPaletteInput paletteInput) {
             var creationTools = new ArrayList<PairDiagramElement>();
+            var payload = new AtomicReference<Mono<IPayload>>();
 
-            Sinks.One<IPayload> payloadSink = Sinks.one();
+            this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(paletteInput.editingContextId())
+                    .ifPresent(processor -> payload.set(processor.handle(paletteInput)));
 
-            this.diagramEventHandler.handle(payloadSink, Sinks.many().unicast().onBackpressureBuffer(), this.getEditingContext(this.input), new DiagramContext(diagram), paletteInput);
-
-            var payloadMono = payloadSink.asMono();
-
-            payloadMono.subscribe(payload -> {
-                if (payload instanceof GetPaletteSuccessPayload getPaletteSuccessPayload) {
-                    getPaletteSuccessPayload.palette().paletteEntries().stream()
+            payload.get().subscribe(invokePayload -> {
+                if (invokePayload instanceof GetPaletteSuccessPayload successPayload) {
+                    successPayload.palette().paletteEntries().stream()
                             .filter(ToolSection.class::isInstance)
                             .filter(toolSection -> Objects.equals(((ToolSection) toolSection).label(), "Creation Tools"))
                             .forEach(toolSection -> {
@@ -144,7 +142,7 @@ public class AiObjectTools extends AiTools {
                                 }
                             });
                 }
-            }, throwable -> System.err.println("Failed to retrieve payload: " + throwable.getMessage()));
+            });
 
             return creationTools;
         }
