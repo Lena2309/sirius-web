@@ -1,33 +1,36 @@
-package org.eclipse.sirius.ai.tools;
+package org.eclipse.sirius.ai.tool;
 
 import org.eclipse.sirius.ai.dto.AiRequestInput;
 import org.eclipse.sirius.components.collaborative.api.IRepresentationSearchService;
 import org.eclipse.sirius.components.collaborative.diagrams.api.IDiagramEventHandler;
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
+import org.eclipse.sirius.components.collaborative.forms.api.IFormEventHandler;
 import org.eclipse.sirius.components.core.api.IEditingContext;
 import org.eclipse.sirius.components.core.api.IEditingContextSearchService;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.components.diagrams.Diagram;
 import org.springframework.context.annotation.Lazy;
 
+import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 public abstract class AiTools {
 
-    private final IEditingContextSearchService editingContextSearchService;
+    protected final IEditingContextSearchService editingContextSearchService;
 
-    private final IRepresentationSearchService representationSearchService;
+    protected final IRepresentationSearchService representationSearchService;
 
-    final IDiagramEventHandler diagramEventHandler;
+    protected final IDiagramEventHandler diagramEventHandler;
 
-    final EditingContextEventProcessorRegistry editingContextEventProcessorRegistry;
+    protected final  List<IFormEventHandler> formEventHandlers;
 
-    IInput input = null;
+    protected final EditingContextEventProcessorRegistry editingContextEventProcessorRegistry;
 
-    IEditingContext editingContext = null;
+    protected IInput input = null;
 
-    Diagram diagram = null;
+    protected IEditingContext editingContext = null;
+
+    protected Diagram diagram = null;
 
     public AiTools(IRepresentationSearchService representationSearchService,
                    IEditingContextSearchService editingContextSearchService,
@@ -37,6 +40,18 @@ public abstract class AiTools {
         this.representationSearchService = Objects.requireNonNull(representationSearchService);
         this.diagramEventHandler = Objects.requireNonNull(diagramEventHandler);
         this.editingContextEventProcessorRegistry = Objects.requireNonNull(editingContextEventProcessorRegistry);
+        this.formEventHandlers = null;
+    }
+
+    public AiTools(IRepresentationSearchService representationSearchService,
+                   IEditingContextSearchService editingContextSearchService,
+                   @Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
+                   List<IFormEventHandler> formEventHandlers) {
+        this.editingContextSearchService = editingContextSearchService;
+        this.representationSearchService = Objects.requireNonNull(representationSearchService);
+        this.diagramEventHandler = null;
+        this.editingContextEventProcessorRegistry = Objects.requireNonNull(editingContextEventProcessorRegistry);
+        this.formEventHandlers = Objects.requireNonNull(formEventHandlers);
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -47,29 +62,28 @@ public abstract class AiTools {
         this.input = input;
     }
 
-    protected IInput getInput() {
-        return input;
+    protected String getEditingContextId() {
+        if (this.input instanceof AiRequestInput aiRequestInput) {
+            return aiRequestInput.editingContextId();
+        }
+        return null;
     }
-
-    protected IEditingContext getEditingContext(IInput input) throws Exception {
-        if (input instanceof AiRequestInput aiRequestInput) {
+    protected IEditingContext getEditingContext() {
+        if (this.input instanceof AiRequestInput aiRequestInput) {
             var optionalEditingContext = this.editingContextSearchService.findById(aiRequestInput.editingContextId());
             return optionalEditingContext.orElse(null);
         }
-        throw new IllegalArgumentException("Input is not an AiRequestInput");
+        return null;
     }
 
-    protected Diagram getDiagram(IInput input) throws Exception {
-        if (input instanceof AiRequestInput aiRequestInput) {
+    protected void refreshDiagram() {
+        if (this.input instanceof AiRequestInput aiRequestInput) {
             if (this.editingContext == null) {
-                this.editingContext = this.getEditingContext(aiRequestInput);
+                this.editingContext = this.getEditingContext();
             }
 
             var optionalDiagram = this.representationSearchService.findById(this.editingContext, aiRequestInput.representationId(), Diagram.class);
-            if (optionalDiagram.isPresent()) {
-                return optionalDiagram.get();
-            }
+            optionalDiagram.ifPresent(diagram -> this.diagram = diagram);
         }
-        throw new IllegalArgumentException("Input is not an AiRequestInput");
     }
 }

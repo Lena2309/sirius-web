@@ -1,5 +1,6 @@
 package org.eclipse.sirius.ai.handlers;
 
+import org.eclipse.sirius.ai.agent.ReasonAgent;
 import org.eclipse.sirius.ai.dto.AiRequestInput;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.slf4j.Logger;
@@ -10,17 +11,17 @@ import org.springframework.stereotype.Service;
 public class AssistantProvider {
     private final Logger logger = LoggerFactory.getLogger(AssistantProvider.class);
 
-    private final Assistant assistant;
+    private final ReasonAgent reasonAgent;
 
-    AssistantProvider(Assistant assistant) {
-        this.assistant = assistant;
+    AssistantProvider(ReasonAgent reasonAgent) {
+        this.reasonAgent = reasonAgent;
     }
 
     public void handle(IInput input) {
         logger.info("Generating AI response");
         if (input instanceof AiRequestInput aiRequestInput) {
             try {
-                this.assistant.generate(aiRequestInput);
+                this.reasonAgent.compute(aiRequestInput);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
