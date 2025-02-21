@@ -14,7 +14,6 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -23,10 +22,11 @@ public class LinkDeletionTools implements AiTool {
 
     private final AiToolService aiToolService;
 
-    public LinkDeletionTools(@Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
-                             AiToolService aiToolService) {
-        this.editingContextEventProcessorRegistry = Objects.requireNonNull(editingContextEventProcessorRegistry);
-        this.aiToolService = Objects.requireNonNull(aiToolService);
+    public LinkDeletionTools(AiToolService aiToolService,
+                             @Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
+                             GetConnectorToolsEventHandler getConnectorToolsEventHandler) {
+        this.aiToolService = aiToolService;
+        this.editingContextEventProcessorRegistry = editingContextEventProcessorRegistry;
     }
 
     @Override
@@ -40,23 +40,16 @@ public class LinkDeletionTools implements AiTool {
 
     @Tool("Delete the link from the diagram.")
     public String deleteLink(@P("The id of the link to delete.") String linkId) {
-        UUID decompressedLinkId;
-
-        try {
-            decompressedLinkId = UUIDConverter.decompress(linkId);
-        } catch (Exception e) {
-            throw new UnsupportedOperationException("Link id is not in the correct format.");
-        }
-
         var deleteInput = new DeleteFromDiagramInput(
                 UUID.randomUUID(),
                 this.aiToolService.getEditingContextId(),
                 this.aiToolService.getRepresentationId(),
                 List.of(),
-                List.of(decompressedLinkId.toString()),
+                List.of(UUIDConverter.decompress(linkId).toString()),
                 DeletionPolicy.SEMANTIC
         );
 
+        this.aiToolService.refreshDiagram();
         var link = this.aiToolService.findEdge(UUIDConverter.decompress(linkId).toString());
 
         this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(deleteInput.editingContextId())

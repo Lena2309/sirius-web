@@ -1,4 +1,4 @@
-package org.eclipse.sirius.ai.agent.context;
+package org.eclipse.sirius.web.ai.agent.context;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
@@ -7,14 +7,14 @@ import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
-import org.eclipse.sirius.ai.agent.Agent;
-import org.eclipse.sirius.ai.agent.diagram.DiagramAgent;
-import org.eclipse.sirius.ai.agent.diagram.ObjectEditionAgent;
-import org.eclipse.sirius.ai.agent.diagram.LinkAgent;
-import org.eclipse.sirius.ai.service.ToolCallService;
-import org.eclipse.sirius.ai.tool.AiTool;
-import org.eclipse.sirius.ai.tool.creation.ObjectCreationTools;
-import org.eclipse.sirius.ai.tool.getter.ObjectGetterTools;
+import org.eclipse.sirius.web.ai.agent.Agent;
+import org.eclipse.sirius.web.ai.agent.diagram.DiagramAgent;
+import org.eclipse.sirius.web.ai.agent.diagram.ObjectEditionAgent;
+import org.eclipse.sirius.web.ai.agent.diagram.LinkAgent;
+import org.eclipse.sirius.web.ai.service.ToolCallService;
+import org.eclipse.sirius.web.ai.tool.AiTool;
+import org.eclipse.sirius.web.ai.tool.creation.ObjectCreationTools;
+import org.eclipse.sirius.web.ai.tool.getter.ObjectGetterTools;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

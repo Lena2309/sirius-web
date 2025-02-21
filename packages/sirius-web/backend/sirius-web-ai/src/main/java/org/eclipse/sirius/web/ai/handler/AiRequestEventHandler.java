@@ -2,7 +2,7 @@ package org.eclipse.sirius.web.ai.handler;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import org.eclipse.sirius.web.ai.agent.routing.OrchestratorAgent;
+import org.eclipse.sirius.web.ai.agent.routing.RoutingAgent;
 import org.eclipse.sirius.web.ai.dto.AiRequestInput;
 import org.eclipse.sirius.web.ai.dto.AiRequestSuccessPayload;
 import org.eclipse.sirius.components.collaborative.api.ChangeDescription;
@@ -19,21 +19,19 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Sinks;
 
-import java.util.Objects;
-
 @Service
 public class AiRequestEventHandler implements IEditingContextEventHandler {
     private final Logger logger = LoggerFactory.getLogger(AiRequestEventHandler.class);
 
-    private final OrchestratorAgent orchestratorAgent;
+    private final RoutingAgent routingAgent;
 
     private final IMessageService messageService;
 
     private final Counter counter;
 
-    public AiRequestEventHandler(OrchestratorAgent orchestratorAgent, IMessageService messageService, MeterRegistry meterRegistry) {
-        this.orchestratorAgent = Objects.requireNonNull(orchestratorAgent);
-        this.messageService = Objects.requireNonNull(messageService);
+    public AiRequestEventHandler(RoutingAgent routingAgent, IMessageService messageService, MeterRegistry meterRegistry) {
+        this.routingAgent = routingAgent;
+        this.messageService = messageService;
 
         this.counter = Counter.builder(Monitoring.EVENT_HANDLER)
                 .tag(Monitoring.NAME, this.getClass().getSimpleName())
@@ -56,7 +54,7 @@ public class AiRequestEventHandler implements IEditingContextEventHandler {
         if (input instanceof AiRequestInput aiRequestInput) {
             try {
                 logger.info("Generating AI response");
-                this.orchestratorAgent.compute(aiRequestInput);
+                this.routingAgent.compute(aiRequestInput);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }

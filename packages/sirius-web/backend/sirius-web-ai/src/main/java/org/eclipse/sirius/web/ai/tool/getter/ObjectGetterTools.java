@@ -17,7 +17,7 @@ public class ObjectGetterTools implements AiTool {
     private final AiToolService aiToolService;
 
     public ObjectGetterTools(AiToolService aiToolService) {
-        this.aiToolService = Objects.requireNonNull(aiToolService);
+        this.aiToolService = aiToolService;
     }
 
     @Override
@@ -25,7 +25,6 @@ public class ObjectGetterTools implements AiTool {
         this.aiToolService.setInput(input);
     }
 
-    /*
     // ---------------------------------------------------------------------------------------------------------------
     //                                               EXISTING OBJECTS GETTERS
     // ---------------------------------------------------------------------------------------------------------------
@@ -50,7 +49,7 @@ public class ObjectGetterTools implements AiTool {
 
         var parentNode = this.aiToolService.findNode(UUIDConverter.decompress(parentObjectId).toString());
 
-        assert Objects.nonNull(parentNode);
+        assert parentNode != null;
         for (var child : parentNode.getChildNodes()) {
             availableChildNodes.add(new PairDiagramElement(child.getTargetObjectKind().replace("siriusComponents://semantic?domain=flow&entity=",""), UUIDConverter.compress(child.getId())));
         }
@@ -88,5 +87,4 @@ public class ObjectGetterTools implements AiTool {
 
         return childrenIds;
     }
-     */
 }
