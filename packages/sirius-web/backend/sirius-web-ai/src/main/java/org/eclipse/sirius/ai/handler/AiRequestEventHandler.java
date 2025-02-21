@@ -1,7 +1,8 @@
-package org.eclipse.sirius.ai.handlers;
+package org.eclipse.sirius.ai.handler;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import org.eclipse.sirius.ai.agent.routing.RoutingAgent;
 import org.eclipse.sirius.ai.dto.AiRequestInput;
 import org.eclipse.sirius.ai.dto.AiRequestSuccessPayload;
 import org.eclipse.sirius.components.collaborative.api.ChangeDescription;
@@ -13,21 +14,23 @@ import org.eclipse.sirius.components.core.api.IEditingContext;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.components.core.api.IPayload;
 import org.eclipse.sirius.web.domain.services.api.IMessageService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-
 import reactor.core.publisher.Sinks;
 
 @Service
 public class AiRequestEventHandler implements IEditingContextEventHandler {
+    private final Logger logger = LoggerFactory.getLogger(AiRequestEventHandler.class);
 
-    private final AssistantProvider assistantProvider;
+    private final RoutingAgent routingAgent;
 
     private final IMessageService messageService;
 
     private final Counter counter;
 
-    public AiRequestEventHandler(AssistantProvider assistantProvider, IMessageService messageService, MeterRegistry meterRegistry) {
-        this.assistantProvider = assistantProvider;
+    public AiRequestEventHandler(RoutingAgent routingAgent, IMessageService messageService, MeterRegistry meterRegistry) {
+        this.routingAgent = routingAgent;
         this.messageService = messageService;
 
         this.counter = Counter.builder(Monitoring.EVENT_HANDLER)
@@ -49,7 +52,12 @@ public class AiRequestEventHandler implements IEditingContextEventHandler {
         ChangeDescription changeDescription = new ChangeDescription(ChangeKind.NOTHING, input.id().toString(), input);
 
         if (input instanceof AiRequestInput aiRequestInput) {
-            this.assistantProvider.handle(aiRequestInput);
+            try {
+                logger.info("Generating AI response");
+                this.routingAgent.compute(aiRequestInput);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
 
             payload = new AiRequestSuccessPayload(input.id());
             changeDescription = new ChangeDescription(ChangeKind.SEMANTIC_CHANGE, input.id().toString(), input);

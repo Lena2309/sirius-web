@@ -2,37 +2,27 @@ package org.eclipse.sirius.ai.tool.getter;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import org.eclipse.sirius.ai.dto.AiRequestInput;
-import org.eclipse.sirius.ai.tool.AiTools;
+import org.eclipse.sirius.ai.tool.AiTool;
+import org.eclipse.sirius.ai.service.AiToolService;
 import org.eclipse.sirius.ai.util.PairDiagramElement;
 import org.eclipse.sirius.ai.util.UUIDConverter;
-import org.eclipse.sirius.components.collaborative.api.IRepresentationSearchService;
-import org.eclipse.sirius.components.collaborative.diagrams.dto.GetPaletteInput;
-import org.eclipse.sirius.components.collaborative.diagrams.dto.GetPaletteSuccessPayload;
-import org.eclipse.sirius.components.collaborative.diagrams.dto.InvokeSingleClickOnDiagramElementToolInput;
-import org.eclipse.sirius.components.collaborative.diagrams.dto.ToolSection;
-import org.eclipse.sirius.components.collaborative.diagrams.handlers.GetPaletteEventHandler;
-import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
-import org.eclipse.sirius.components.core.api.IEditingContextSearchService;
 import org.eclipse.sirius.components.core.api.IInput;
-import org.eclipse.sirius.components.core.api.IPayload;
 import org.eclipse.sirius.components.diagrams.Node;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
-import reactor.core.publisher.Mono;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicReference;
 
 @Service
-public class ObjectGetterTools extends AiTools {
-    public ObjectGetterTools(IRepresentationSearchService representationSearchService,
-                             IEditingContextSearchService editingContextSearchService,
-                             @Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
-                             GetPaletteEventHandler paletteEventHandler) {
-        super(representationSearchService, editingContextSearchService, editingContextEventProcessorRegistry, paletteEventHandler);
+public class ObjectGetterTools implements AiTool {
+    private final AiToolService aiToolService;
+
+    public ObjectGetterTools(AiToolService aiToolService) {
+        this.aiToolService = aiToolService;
+    }
+
+    @Override
+    public void setInput(IInput input) {
+        this.aiToolService.setInput(input);
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -43,9 +33,9 @@ public class ObjectGetterTools extends AiTools {
     public List<PairDiagramElement> getExistingObjectsIds() {
         var availableObjects = new ArrayList<PairDiagramElement>();
 
-        this.refreshDiagram();
+        this.aiToolService.refreshDiagram();
 
-        for (var node : this.diagram.getNodes()) {
+        for (var node : this.aiToolService.getDiagram().getNodes()) {
             availableObjects.add(new PairDiagramElement(node.getTargetObjectKind().replace("siriusComponents://semantic?domain=flow&entity=",""), UUIDConverter.compress(node.getId())));
         }
 
@@ -55,14 +45,12 @@ public class ObjectGetterTools extends AiTools {
     @Tool("Retrieve a List of existing children IDs structured as: {child type, child id}. Useless for freshly created objects, or when creating objects at root. The ids should not be modified.")
     public List<PairDiagramElement> getExistingChildrenIdsFromSpecificParent(@P("The parent object. Not the diagram root.") String parentObjectId) {
         var availableChildNodes = new ArrayList<PairDiagramElement>();
-        this.refreshDiagram();
+        this.aiToolService.refreshDiagram();
 
-        var parentNode = this.diagram.getNodes().stream()
-                .filter(node -> Objects.equals(node.getId(), UUIDConverter.decompress(parentObjectId).toString()))
-                .findFirst();
+        var parentNode = this.aiToolService.findNode(UUIDConverter.decompress(parentObjectId).toString());
 
-        assert parentNode.isPresent();
-        for (var child : parentNode.get().getChildNodes()) {
+        assert parentNode != null;
+        for (var child : parentNode.getChildNodes()) {
             availableChildNodes.add(new PairDiagramElement(child.getTargetObjectKind().replace("siriusComponents://semantic?domain=flow&entity=",""), UUIDConverter.compress(child.getId())));
         }
 
@@ -86,9 +74,9 @@ public class ObjectGetterTools extends AiTools {
     public Map<String, List<PairDiagramElement>> getAllExistingChildrenIds() {
         var childrenIds = new HashMap<String, List<PairDiagramElement>>();
 
-        this.refreshDiagram();
+        this.aiToolService.refreshDiagram();
 
-        for (Node parent : this.diagram.getNodes()) {
+        for (Node parent : this.aiToolService.getDiagram().getNodes()) {
             var availableChildNodes = new ArrayList<PairDiagramElement>();
 
             for (var child : parent.getChildNodes()) {

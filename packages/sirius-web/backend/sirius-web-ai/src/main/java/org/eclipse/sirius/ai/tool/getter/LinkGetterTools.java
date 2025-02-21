@@ -1,25 +1,26 @@
 package org.eclipse.sirius.ai.tool.getter;
 
 import dev.langchain4j.agent.tool.Tool;
-import org.eclipse.sirius.ai.tool.AiTools;
+import org.eclipse.sirius.ai.tool.AiTool;
+import org.eclipse.sirius.ai.service.AiToolService;
 import org.eclipse.sirius.ai.util.UUIDConverter;
-import org.eclipse.sirius.components.collaborative.api.IRepresentationSearchService;
-import org.eclipse.sirius.components.collaborative.diagrams.handlers.GetConnectorToolsEventHandler;
-import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
-import org.eclipse.sirius.components.core.api.IEditingContextSearchService;
-import org.springframework.context.annotation.Lazy;
+import org.eclipse.sirius.components.core.api.IInput;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @Service
-public class LinkGetterTools extends AiTools {
-    public LinkGetterTools(IRepresentationSearchService representationSearchService,
-                           IEditingContextSearchService editingContextSearchService,
-                           @Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
-                           GetConnectorToolsEventHandler getConnectorToolsEventHandler) {
-        super(representationSearchService, editingContextSearchService, editingContextEventProcessorRegistry, getConnectorToolsEventHandler);
+public class LinkGetterTools implements AiTool {
+    private final AiToolService aiToolService;
+
+    public LinkGetterTools(AiToolService aiToolService) {
+        this.aiToolService = aiToolService;
+    }
+
+    @Override
+    public void setInput(IInput input) {
+        this.aiToolService.setInput(input);
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -31,9 +32,9 @@ public class LinkGetterTools extends AiTools {
         var availableLinks = new HashMap<String, Map<String, String>>();
         var sourceAndTargetNodes = new HashMap<String, String>();
 
-        this.refreshDiagram();
+        this.aiToolService.refreshDiagram();
 
-        for (var edge : this.diagram.getEdges()) {
+        for (var edge : this.aiToolService.getDiagram().getEdges()) {
             sourceAndTargetNodes.put(UUIDConverter.compress(edge.getSourceId()), UUIDConverter.compress(edge.getTargetId()));
             availableLinks.put(UUIDConverter.compress(edge.getId()), sourceAndTargetNodes);
         }
