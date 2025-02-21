@@ -1,8 +1,9 @@
 package org.eclipse.sirius.ai;
 
-import org.eclipse.sirius.ai.handlers.AiRequestEventHandler;
 import org.eclipse.sirius.ai.dto.AiRequestInput;
+import org.eclipse.sirius.ai.handler.AiRequestEventHandler;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Sinks;
@@ -22,12 +23,25 @@ public class AssistantController {
     @PostMapping("/chat")
     public void chatRequest() {
         AiRequestInput aiRequestInput = new AiRequestInput(UUID.randomUUID(),
-                "Generate one composite processor, and 1 processor inside. Outside create 1 data source.",
-                "1a6568cd-43fb-4c72-9cb9-2a413ee48056",
-                "c38c79d7-e78a-4e29-a1cd-8f97955e9d46"
+                "Now I want the processor inside the Composite Processor have a status inactive. Then generate a data source, that is linked to the processor inside the composite processor.",
+                "2235cc2e-e531-4b83-88ba-3bd622250d56",
+                "bc9cedc9-d0b4-4737-b289-98377744ff26"
         );
 
         this.aiRequestEventHandler.handle(Sinks.one(), Sinks.many().unicast().onBackpressureBuffer(), null, aiRequestInput);
 
     }
+
+    @PostMapping("/chatwithparameters")
+    public void chatRequest(@RequestBody Request request) {
+        AiRequestInput aiRequestInput = new AiRequestInput(UUID.randomUUID(),
+                request.prompt,
+                request.editingContextID,
+                request.representationId
+        );
+
+        this.aiRequestEventHandler.handle(Sinks.one(), Sinks.many().unicast().onBackpressureBuffer(), null, aiRequestInput);
+    }
+
+    record Request(String prompt, String editingContextID, String representationId) { }
 }
