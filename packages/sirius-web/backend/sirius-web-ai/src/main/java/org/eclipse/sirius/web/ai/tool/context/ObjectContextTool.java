@@ -1,7 +1,7 @@
-package org.eclipse.sirius.ai.tool.context;
+package org.eclipse.sirius.web.ai.tool.context;
 
-import org.eclipse.sirius.ai.tool.AiTool;
-import org.eclipse.sirius.ai.service.AiToolService;
+import org.eclipse.sirius.web.ai.tool.AiTool;
+import org.eclipse.sirius.web.ai.service.AiToolService;
 import org.eclipse.sirius.components.core.api.IInput;
 
 public class ObjectContextTool implements AiTool {

@@ -8,17 +8,13 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
-import dev.langchain4j.model.openai.OpenAiChatModel;
-import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.web.ai.agent.Agent;
-import org.eclipse.sirius.web.ai.tool.context.BuildContextTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import java.util.*;
-
-import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class ReasonAgent implements Agent {
@@ -27,31 +23,17 @@ public class ReasonAgent implements Agent {
 
     private final ChatLanguageModel model;
 
-    private final BuildContextTool buildContextTool;
-
-    public ReasonAgent(BuildContextTool buildContextTool) {
-        this.model = OpenAiChatModel.builder()
-                .apiKey(System.getenv("OPENAI_API_KEY"))
-                .modelName(GPT_4_O)
-                .temperature(0.6)
-                .build();
-        this.buildContextTool = Objects.requireNonNull(buildContextTool);
-    }
-
-    public void setInput(IInput input) {
-        this.buildContextTool.setInput(input);
+    public ReasonAgent(ChatLanguageModel model) {
+        this.model = model;
     }
 
     @Tool("List all the relevant and appropriate concepts that are necessary for the user's request in the context of the Diagram.")
     public String think(@P("The user's original prompt") String prompt) {
-        var context = this.buildContextTool.buildDomainContext();
-        logger.info(context);
-
         List<ChatMessage> previousMessages = new ArrayList<>();
-/*
+
         previousMessages.add(new SystemMessage("""
              You are an agent for Diagram Generation.
-             From the user's prompt and the domain context, list all the concepts/objects that are relevant and appropriate.
+             From the user's prompt, list all the concepts/objects that are relevant and appropriate.
              Do not forget links between the objects. Do not forget to set special values for properties, if necessary.
              Mention if the concept must be created, deleted or edited. Unless knowing they already exist, create the objects and links.
              Your output should be concise and without ambiguity, it will be used by another LLM in an ulterior process.
@@ -61,40 +43,8 @@ public class ReasonAgent implements Agent {
                     - Edit Object Property: Status: inactive
              - Create Data Source (Data Source 1)
                 - Link To Processor 1
-
-             Example:
-                Liens disponibles:
-                    - Brique to Brique
-                    - Toiture to Mur
-                    - Fenetre to Mur
-                    - Fenetre to Toiture
-                    - Porte to Mur
-
-                Objects disponibles
-                    - Mur
-                        - Brique
-                    - Toiture
-                    - Porte
-                    - Fenetre
-                    - Pelouse
-                    - Piscine
-
-                Prompt: "Fabrique une maison"
-                Réponse: "
-                Une maison a 4 murs, chacun contient 10 briques liées entre elles. Une maison a une toiture liées aux murs.
-                Une maison a 1 porte liée à l'un des murs, elle devient une porte d'entrée.
-                Elle a 2 fenêtres par mur et une fenêtre sur la toiture.
-               "
              """));
-*/
-        previousMessages.add(new SystemMessage("""
-             You are a reasoning agent for diagram driven data Generation.
-             Your purpose is to transform the user needs into a prompt that relies on the provided domain concepts.
-             You are given a set of concepts, do not define or describe those concepts, but use them to build a representation that would satisfy the user's prompt.
-             Your representation must be rich and complete. You have to be clear about what to create and what to link, as well as what special properties to set.
-             Do not hallucinate.
-             """));
-        previousMessages.add(new UserMessage("Here is the domain context:"+context));
+
         previousMessages.add(new UserMessage(prompt));
 
         ChatRequest request = new ChatRequest.Builder()

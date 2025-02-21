@@ -1,15 +1,15 @@
-package org.eclipse.sirius.ai.agent.routing;
+package org.eclipse.sirius.web.ai.agent.routing;
 
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
-import org.eclipse.sirius.ai.agent.Agent;
-import org.eclipse.sirius.ai.agent.diagram.*;
-import org.eclipse.sirius.ai.agent.reason.ReasonAgent;
-import org.eclipse.sirius.ai.dto.AiRequestInput;
-import org.eclipse.sirius.ai.service.ToolCallService;
+import org.eclipse.sirius.web.ai.agent.Agent;
+import org.eclipse.sirius.web.ai.agent.diagram.*;
+import org.eclipse.sirius.web.ai.agent.reason.ReasonAgent;
+import org.eclipse.sirius.web.ai.dto.AiRequestInput;
+import org.eclipse.sirius.web.ai.service.ToolCallService;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
