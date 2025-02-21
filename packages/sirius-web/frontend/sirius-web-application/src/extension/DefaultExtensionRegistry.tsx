@@ -46,20 +46,29 @@ import {
   ReferencePreview,
   ReferencePropertySection,
 } from '@eclipse-sirius/sirius-components-widget-reference';
+import { TableWidgetPreview } from '@eclipse-sirius/sirius-components-widget-table';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import FileCopyIcon from '@mui/icons-material/FileCopy';
 import Filter from '@mui/icons-material/Filter';
+import FolderIcon from '@mui/icons-material/Folder';
 import ImageIcon from '@mui/icons-material/Image';
 import LinkIcon from '@mui/icons-material/Link';
 import MenuIcon from '@mui/icons-material/Menu';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import TableViewIcon from '@mui/icons-material/TableView';
 import WarningIcon from '@mui/icons-material/Warning';
-import { useMatch } from 'react-router-dom';
+import ListItemIcon from '@mui/material/ListItemIcon';
+import ListItemText from '@mui/material/ListItemText';
+import MenuItem from '@mui/material/MenuItem';
+import { Link as RouterLink, useMatch } from 'react-router-dom';
 import { DiagramFilter } from '../diagrams/DiagramFilter';
 import { ApolloLinkUndoRedoStack } from '../graphql/ApolloLinkUndoRedoStack';
 import { ApolloClientOptionsConfigurer } from '../graphql/useCreateApolloClient.types';
 import { apolloClientOptionsConfigurersExtensionPoint } from '../graphql/useCreateApolloClientExtensionPoints';
 import { NavigationBarRightContributionProps } from '../navigationBar/NavigationBar.types';
 import { navigationBarRightContributionExtensionPoint } from '../navigationBar/NavigationBarExtensionPoints';
+import { NavigationBarMenuItemProps } from '../navigationBar/NavigationBarMenu.types';
+import { navigationBarMenuEntryExtensionPoint } from '../navigationBar/NavigationBarMenuExtensionPoints';
 import { OnboardArea } from '../onboarding/OnboardArea';
 import { DiagramTreeItemContextMenuContribution } from '../views/edit-project/DiagramTreeItemContextMenuContribution';
 import { DocumentTreeItemContextMenuContribution } from '../views/edit-project/DocumentTreeItemContextMenuContribution';
@@ -202,6 +211,46 @@ defaultExtensionRegistry.addComponent(navigationBarRightContributionExtensionPoi
 
 /*******************************************************************************
  *
+ * NavigationBar menu contributions
+ *
+ * Used to register actions in the navigation bar menu
+ *
+ *******************************************************************************/
+
+export const ProjectsButtonContribution = ({}: NavigationBarMenuItemProps) => {
+  return (
+    <MenuItem component={RouterLink} to="/projects">
+      <ListItemIcon>
+        <FolderIcon />
+      </ListItemIcon>
+      <ListItemText primary="Projects" />
+    </MenuItem>
+  );
+};
+
+defaultExtensionRegistry.addComponent(navigationBarMenuEntryExtensionPoint, {
+  identifier: `siriusweb_${navigationBarMenuEntryExtensionPoint.identifier}_projects`,
+  Component: ProjectsButtonContribution,
+});
+
+export const LibrariesButtonContribution = ({}: NavigationBarMenuItemProps) => {
+  return (
+    <MenuItem component={RouterLink} to="/libraries">
+      <ListItemIcon>
+        <FileCopyIcon />
+      </ListItemIcon>
+      <ListItemText primary="Libraries" />
+    </MenuItem>
+  );
+};
+
+defaultExtensionRegistry.addComponent(navigationBarMenuEntryExtensionPoint, {
+  identifier: `siriusweb_${navigationBarMenuEntryExtensionPoint.identifier}_libraries`,
+  Component: LibrariesButtonContribution,
+});
+
+/*******************************************************************************
+ *
  * Create project area cards
  *
  * Used to register all the type of cards in the create project area
@@ -292,7 +341,6 @@ const nodesApolloClientOptionsConfigurer: ApolloClientOptionsConfigurer = (curre
   return {
     ...currentOptions,
     documentTransform: newDocumentTransform,
-    link: new ApolloLinkUndoRedoStack().concat(currentOptions.link),
   };
 };
 
@@ -308,9 +356,20 @@ const widgetsApolloClientOptionsConfigurer: ApolloClientOptionsConfigurer = (cur
   };
 };
 
+const undoRedoApolloClientOptionsConfigurer: ApolloClientOptionsConfigurer = (currentOptions) => {
+  return {
+    ...currentOptions,
+    link: new ApolloLinkUndoRedoStack().concat(currentOptions.link),
+  };
+};
+
 defaultExtensionRegistry.putData(apolloClientOptionsConfigurersExtensionPoint, {
   identifier: `siriusWeb_${apolloClientOptionsConfigurersExtensionPoint.identifier}`,
-  data: [nodesApolloClientOptionsConfigurer, widgetsApolloClientOptionsConfigurer],
+  data: [
+    nodesApolloClientOptionsConfigurer,
+    widgetsApolloClientOptionsConfigurer,
+    undoRedoApolloClientOptionsConfigurer,
+  ],
 });
 
 /*******************************************************************************
@@ -324,7 +383,7 @@ defaultExtensionRegistry.putData(apolloClientOptionsConfigurersExtensionPoint, {
 const isReferenceWidget = (widget: GQLWidget): widget is GQLReferenceWidget => widget.__typename === 'ReferenceWidget';
 
 defaultExtensionRegistry.putData(widgetContributionExtensionPoint, {
-  identifier: `siriusWeb_${widgetContributionExtensionPoint.identifier}_referenceWidget`,
+  identifier: `siriusWeb_${widgetContributionExtensionPoint.identifier}`,
   data: [
     {
       name: 'ReferenceWidget',
@@ -338,6 +397,12 @@ defaultExtensionRegistry.putData(widgetContributionExtensionPoint, {
         }
         return propertySectionComponent;
       },
+    },
+    {
+      name: 'TableWidget',
+      icon: <TableViewIcon />,
+      previewComponent: TableWidgetPreview,
+      component: (_widget: GQLWidget): PropertySectionComponent<GQLWidget> | null => null,
     },
   ],
 });

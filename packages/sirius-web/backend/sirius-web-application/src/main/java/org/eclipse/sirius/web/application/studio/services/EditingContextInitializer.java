@@ -38,6 +38,7 @@ import org.eclipse.sirius.web.application.editingcontext.services.api.IEditingCo
 import org.eclipse.sirius.web.application.editingcontext.services.api.IResourceLoader;
 import org.eclipse.sirius.web.application.studio.services.api.IDomainProvider;
 import org.eclipse.sirius.web.application.studio.services.api.IStudioColorPalettesLoader;
+import org.eclipse.sirius.web.domain.boundedcontexts.semanticdata.Document;
 import org.eclipse.sirius.web.domain.boundedcontexts.semanticdata.services.api.ISemanticDataSearchService;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -95,8 +96,7 @@ public class EditingContextInitializer implements IEditingContextProcessor {
                 resourceSet.getPackageRegistry().put(TablePackage.eNS_URI, TablePackage.eINSTANCE);
                 this.studioColorPalettesLoader.loadStudioColorPalettes(resourceSet);
 
-                semanticData.getDocuments().forEach(document -> this.resourceLoader.toResource(resourceSet, document.getId().toString(), document.getName(), document.getContent(),
-                        this.migrationParticipantPredicates.stream().anyMatch(predicate -> predicate.test(semanticData.getProject().getId().toString()))));
+                semanticData.getDocuments().forEach(document -> this.toResource(semanticData.getId().toString(), resourceSet, document));
                 resourceSet.eAdapters().add(new EditingContextCrossReferenceAdapter());
 
                 var treeIterator = resourceSet.getAllContents();
@@ -117,5 +117,10 @@ public class EditingContextInitializer implements IEditingContextProcessor {
             var resourceSet = siriusWebEditingContext.getDomain().getResourceSet();
             new DomainConverter().convert(domains).forEach(ePackage -> resourceSet.getPackageRegistry().put(ePackage.getNsURI(), ePackage));
         }
+    }
+
+    private void toResource(String editingContextId, ResourceSet resourceSet, Document document) {
+        boolean useMigrationParticipants = this.migrationParticipantPredicates.stream().anyMatch(predicate -> predicate.test(editingContextId));
+        this.resourceLoader.toResource(resourceSet, document.getId().toString(), document.getName(), document.getContent(), useMigrationParticipants);
     }
 }

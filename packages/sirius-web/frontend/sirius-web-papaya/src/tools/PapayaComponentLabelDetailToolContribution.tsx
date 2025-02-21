@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2023, 2024 Obeo.
+ * Copyright (c) 2023, 2025 Obeo.
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
  * which accompanies this distribution, and is available at
@@ -16,13 +16,17 @@ import Dialog from '@mui/material/Dialog';
 import DialogContent from '@mui/material/DialogContent';
 import DialogContentText from '@mui/material/DialogContentText';
 import IconButton from '@mui/material/IconButton';
+import { Theme } from '@mui/material/styles';
 import { Node, useNodes } from '@xyflow/react';
 import { Fragment, useState } from 'react';
 import { makeStyles } from 'tss-react/mui';
 
-const useToolStyle = makeStyles()(() => ({
+const useToolStyle = makeStyles()((theme: Theme) => ({
   tool: {
-    width: '36px',
+    minWidth: theme.spacing(3),
+    minHeight: theme.spacing(3),
+    color: theme.palette.text.primary,
+    padding: 0,
   },
 }));
 
@@ -66,7 +70,7 @@ export const PapayaComponentLabelDetailToolContribution = ({ diagramElementId }:
         title="Label detail"
         onClick={() => setModal('dialog')}
         data-testid="label-detail">
-        <Slideshow />
+        <Slideshow sx={{ fontSize: 16 }} />
       </IconButton>
       {modalElement}
     </Fragment>

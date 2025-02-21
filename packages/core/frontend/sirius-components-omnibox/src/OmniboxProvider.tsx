@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2024 Obeo.
+ * Copyright (c) 2024, 2025 Obeo.
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
  * which accompanies this distribution, and is available at
@@ -17,7 +17,7 @@ import { OmniboxContext } from './OmniboxContext';
 import { OmniboxContextValue } from './OmniboxContext.types';
 import { OmniboxProviderProps, OmniboxProviderState } from './OmniboxProvider.types';
 
-export const OmniboxProvider = ({ initialContextEntries = [], children }: OmniboxProviderProps) => {
+export const OmniboxProvider = ({ editingContextId, initialContextEntries = [], children }: OmniboxProviderProps) => {
   const [state, setState] = useState<OmniboxProviderState>({
     open: false,
   });
@@ -48,7 +48,12 @@ export const OmniboxProvider = ({ initialContextEntries = [], children }: Omnibo
     <OmniboxContext.Provider value={omniboxContextValue}>
       {children}
       {state.open ? (
-        <Omnibox open={state.open} initialContextEntries={initialContextEntries} onClose={closeOmnibox} />
+        <Omnibox
+          open={state.open}
+          editingContextId={editingContextId}
+          initialContextEntries={initialContextEntries}
+          onClose={closeOmnibox}
+        />
       ) : null}
     </OmniboxContext.Provider>
   );

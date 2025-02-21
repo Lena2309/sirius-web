@@ -25,6 +25,7 @@
 - [ADR-179] Add support for regular commands in the command palette
 - [ADR-180] Add support for widget diagnostics provider in View-based Forms
 - [ADR-181] Improve the customization of the navigation bar
+- [ADR-182] Add additional capabilities to synchronize some code with the deletion of a project
 
 === Deprecation warning
 
@@ -42,6 +43,13 @@ Use the new frontend extension point `navigationBarCenterContributionExtensionPo
 See `PapayaExtensionRegistry.tsx` for an example of how rendering a project subtitle can be achieved with the new extension point.
 - https://github.com/eclipse-sirius/sirius-web/issues/4408[#4408] [diagram] Display diagram contextual menu (a.k.a the Palette) with right click instead of left click.
 It is not an API breaking change but a breaking change from the end-user point of view.
+- https://github.com/eclipse-sirius/sirius-web/issues/4500[#4500] [sirius-web] Remove the tight coupling between `SemanticData` and `Project` by removing `SemanticData#project` along with the column `project_id` from the `semantic_data` table
+- https://github.com/eclipse-sirius/sirius-web/issues/4501[#4501] [browser] `IReferenceWidgetRootCandidateSearchProvider` API has been renamed to `IModelBrowserRootCandidateSearchProvider` and moved to the `sirius-components-collaborative-browser` module.
+- https://github.com/eclipse-sirius/sirius-web/issues/4377[#4377] [sirius-web] The `sirius-web-table` project has been renamed to `sirius-web-view-fork`
+- https://github.com/eclipse-sirius/sirius-web/issues/4372[#4372] [sirius-web] The identifier used for `editingContextId` is now `SemanticData#id` instead of `Project#id`.
+In order to find the `editingContextId` from the `projectId` one should leverage `IProjectSemanticDataSearchService#findByProjectId` and use the `ìd` of the semantic data found.
+To find instead the `projectId` from the `editingContextId`, `IProjectSemanticDataSearchService#findBySemanticDataId` should be used along with the `id` of the project.
+The method `IEditingContextLoader#load` has also been updated to not use `projectId` as parameter anymore but instead the `SemanticData` directly.
 
 
 === Dependency update
@@ -79,6 +87,22 @@ Now they are executed for some data if the data was coming from a studio too.
 - https://github.com/eclipse-sirius/sirius-web/issues/4310[#4310] [diagram] Fix the list node border visibility using _dash_ style
 - https://github.com/eclipse-sirius/sirius-web/issues/4390[#4390] [form] Fix an issue displaying irrelevant help text and diagnostics
 - [diagram] Replace `requestIdleCallback` with `setTimeout` for browser compatibility given the fact that `requestIdleCallback` is still a working draft
+- [sirius-web] Fix a recently introduced bug in which the semantic data of a project could remain after the deletion of the project
+- https://github.com/eclipse-sirius/sirius-web/issues/4536[#4536] [sirius-web] Fix a recently introduced bug which broke semantic Undo/Redo support
+- https://github.com/eclipse-sirius/sirius-web/issues/4498[#4498] [diagram] Fix an issue where the arrow heads were lost during SVG/PNG export.
+- https://github.com/eclipse-sirius/sirius-web/issues/4545[#4545] [view] Ensure that widgets used to edit numbers are not created twice in view based forms
+- https://github.com/eclipse-sirius/sirius-web/issues/4530[#4530] [formdescriptioneditor] Ensure that the frontend will not crash while trying to display some nested structure
+- https://github.com/eclipse-sirius/sirius-web/issues/4544[#4544] [diagram] Fix an issue where quicktools could be misaligned by ensuring now that all quick tools provided by Sirius Web are 24px in width and 24px in height
+- https://github.com/eclipse-sirius/sirius-web/issues/4523[#4523] [diagram] Fix an issue that caused the palette to be unopenable during a fit view
+- https://github.com/eclipse-sirius/sirius-web/issues/4557[#4557] [sirius-web] Fix an issue where targetObjectURI was not set in manifest.json during the download of a project
+- https://github.com/eclipse-sirius/sirius-web/issues/4547[#4547] [vs-code] Adapt the VSCode extension to the use of SemanticData#id as editingContextId
+- https://github.com/eclipse-sirius/sirius-web/issues/4561[#4561] [sirius-web] Display boolean values properly in the query view
+- https://github.com/eclipse-sirius/sirius-web/issues/4522[#4522] [diagram] Fix an issue where custom tools were no longer contributed to the diagram palette
+- https://github.com/eclipse-sirius/sirius-web/issues/4549[#4549] [diagram] Fix an issue where edge tools could be shown in a palette tool section
+- https://github.com/eclipse-sirius/sirius-web/issues/4559[#4559] [diagram] Prevent list children positions to be set to (0,0) in certain random situations.
+- https://github.com/eclipse-sirius/sirius-web/issues/4257[#4257] [diagram] Prevent the width of list nodes from increasing on each layout
+- https://github.com/eclipse-sirius/sirius-web/issues/4554[#4554] [diagram] Stop synchronizing selection from the explorer if the corresponding node is hidden
+- https://github.com/eclipse-sirius/sirius-web/issues/4285[#4285] [diagram] Fix direct edit after closing the palette
 
 
 === New Features
@@ -121,6 +145,14 @@ See `PapayaExtensionRegistry.tsx` for how the same result as before can be achie
 - https://github.com/eclipse-sirius/sirius-web/issues/4326[#4326] [diagram] Add quickAccessTools to diagram's palette in view dsl
 - https://github.com/eclipse-sirius/sirius-web/issues/4458[#4458] [sirius-web] Export direct edit functionalities.
 - https://github.com/eclipse-sirius/sirius-web/issues/4481[#4481] [table] Add support for cell custom target object in View DSL
+- https://github.com/eclipse-sirius/sirius-web/issues/4377[#4377] [sirius-web] Add the ability to update dynamically the description of any representation
+- https://github.com/eclipse-sirius/sirius-web/issues/4462[#4462] [sirius-web] Add support for visualization of the libraries available on a server.
+For that, a new page `/libraries` showing all the libraries has been contributed.
+- https://github.com/eclipse-sirius/sirius-web/issues/4564[#4564] [sirius-web] Add an arrow to close the palette on its header
+- https://github.com/eclipse-sirius/sirius-web/issues/4428[#4428] [core] Allow to contribute custom commands in the command palette.
+A new search command as been contributed to the palette in Sirius Web, which can be selected to set the palette in a 'search' mode that searches elements in the project.
+- https://github.com/eclipse-sirius/sirius-web/issues/4584[#4584] [core] Allow the command palette to execute custom commands.
+- https://github.com/eclipse-sirius/sirius-web/issues/4329[#4329] [form] Add support for tables as widget in the form view DSL
 
 
 === Improvements
@@ -157,6 +189,11 @@ Note that you may need to encode special characters like `[`(by `%5B`) and `]` (
 - https://github.com/eclipse-sirius/sirius-web/issues/4474[#4474] [query] Add EMF Services (eSet, eUnset) for the Query View.
 - https://github.com/eclipse-sirius/sirius-web/issues/4354[#4354] [table] Add support for cursor based pagination in table view DSL
 - https://github.com/eclipse-sirius/sirius-web/issues/4478[#4478] [sirius-web] Provide an API to search custom resource on download document action
+- https://github.com/eclipse-sirius/sirius-web/issues/4500[#4500] [sirius-web] Reduce the coupling between semantic data and project to be able to leverage the semantic data concept in other use cases.
+To achieve that a new concept, `ProjectSemanticData` has been added along with a dedicated table to keep the information previously contained in `SemanticData`
+- https://github.com/eclipse-sirius/sirius-web/issues/4501[#4501] [browser] Extract the model browser into reusable modules
+- https://github.com/eclipse-sirius/sirius-web/issues/4514[#4514] [sirius-web] Added support for Ctrl+Shift+Z (Linux/macOS) to trigger redo in addition to Ctrl+Y (Windows)
+- https://github.com/eclipse-sirius/sirius-web/issues/4372[#4372] [sirius-web] Lower the coupling between project and editing context
 
 
 == v2025.1.0

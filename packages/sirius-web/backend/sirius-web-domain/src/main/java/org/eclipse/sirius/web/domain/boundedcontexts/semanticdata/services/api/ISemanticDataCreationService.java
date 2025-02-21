@@ -12,9 +12,12 @@
  *******************************************************************************/
 package org.eclipse.sirius.web.domain.boundedcontexts.semanticdata.services.api;
 
+import java.util.List;
+
 import org.eclipse.sirius.components.events.ICause;
-import org.eclipse.sirius.web.domain.boundedcontexts.project.Project;
-import org.springframework.data.jdbc.core.mapping.AggregateReference;
+import org.eclipse.sirius.web.domain.boundedcontexts.semanticdata.Document;
+import org.eclipse.sirius.web.domain.boundedcontexts.semanticdata.SemanticData;
+import org.eclipse.sirius.web.domain.services.IResult;
 
 /**
  * Used to create the semantic data.
@@ -22,5 +25,5 @@ import org.springframework.data.jdbc.core.mapping.AggregateReference;
  * @author sbegaudeau
  */
 public interface ISemanticDataCreationService {
-    void initialize(ICause cause, AggregateReference<Project, String> project);
+    IResult<SemanticData> create(ICause cause, List<Document> documents, List<String> domains);
 }

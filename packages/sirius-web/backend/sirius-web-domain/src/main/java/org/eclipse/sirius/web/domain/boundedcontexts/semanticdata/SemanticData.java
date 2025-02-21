@@ -13,9 +13,9 @@
 package org.eclipse.sirius.web.domain.boundedcontexts.semanticdata;
 
 import java.time.Instant;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
@@ -23,14 +23,11 @@ import java.util.stream.Collectors;
 
 import org.eclipse.sirius.components.events.ICause;
 import org.eclipse.sirius.web.domain.boundedcontexts.AbstractValidatingAggregateRoot;
-import org.eclipse.sirius.web.domain.boundedcontexts.project.Project;
 import org.eclipse.sirius.web.domain.boundedcontexts.semanticdata.events.SemanticDataCreatedEvent;
 import org.eclipse.sirius.web.domain.boundedcontexts.semanticdata.events.SemanticDataUpdatedEvent;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Transient;
 import org.springframework.data.domain.Persistable;
-import org.springframework.data.jdbc.core.mapping.AggregateReference;
-import org.springframework.data.relational.core.mapping.Column;
 import org.springframework.data.relational.core.mapping.MappedCollection;
 import org.springframework.data.relational.core.mapping.Table;
 
@@ -48,9 +45,6 @@ public class SemanticData extends AbstractValidatingAggregateRoot<SemanticData> 
     @Id
     private UUID id;
 
-    @Column("project_id")
-    private AggregateReference<Project, String> project;
-
     @MappedCollection(idColumn = "semantic_data_id")
     private Set<Document> documents = new LinkedHashSet<>();
 
@@ -64,10 +58,6 @@ public class SemanticData extends AbstractValidatingAggregateRoot<SemanticData> 
     @Override
     public UUID getId() {
         return this.id;
-    }
-
-    public AggregateReference<Project, String> getProject() {
-        return this.project;
     }
 
     public Set<Document> getDocuments() {
@@ -159,23 +149,17 @@ public class SemanticData extends AbstractValidatingAggregateRoot<SemanticData> 
      */
     @SuppressWarnings("checkstyle:HiddenField")
     public static final class Builder {
-        private AggregateReference<Project, String> project;
-
         private Set<Document> documents = new LinkedHashSet<>();
 
         private Set<SemanticDataDomain> domains = new LinkedHashSet<>();
 
-        public Builder project(AggregateReference<Project, String> project) {
-            this.project = Objects.requireNonNull(project);
+        public Builder documents(List<Document> documents) {
+            this.documents = documents.stream()
+                    .collect(Collectors.toSet());
             return this;
         }
 
-        public Builder documents(Set<Document> documents) {
-            this.documents = Objects.requireNonNull(documents);
-            return this;
-        }
-
-        public Builder domains(Collection<String> domains) {
+        public Builder domains(List<String> domains) {
             this.domains = domains.stream()
                     .map(SemanticDataDomain::new)
                     .collect(Collectors.toSet());
@@ -187,7 +171,6 @@ public class SemanticData extends AbstractValidatingAggregateRoot<SemanticData> 
 
             semanticData.isNew = true;
             semanticData.id = UUID.randomUUID();
-            semanticData.project = Objects.requireNonNull(this.project);
             semanticData.documents = Objects.requireNonNull(this.documents);
             semanticData.domains = Objects.requireNonNull(this.domains);
 

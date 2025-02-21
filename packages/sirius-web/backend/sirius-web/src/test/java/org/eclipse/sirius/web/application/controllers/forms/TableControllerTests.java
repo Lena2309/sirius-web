@@ -45,6 +45,7 @@ import org.eclipse.sirius.components.tables.tests.navigation.TableNavigator;
 import org.eclipse.sirius.web.AbstractIntegrationTests;
 import org.eclipse.sirius.web.data.PapayaIdentifiers;
 import org.eclipse.sirius.web.services.forms.FormWithTableDescriptionProvider;
+import org.eclipse.sirius.web.services.forms.FormWithViewTableDescriptionProvider;
 import org.eclipse.sirius.web.tests.data.GivenSiriusWebServer;
 import org.eclipse.sirius.web.tests.services.api.IGivenCreatedFormSubscription;
 import org.eclipse.sirius.web.tests.services.api.IGivenInitialServerState;
@@ -86,13 +87,16 @@ public class TableControllerTests extends AbstractIntegrationTests {
     @Autowired
     private EditMultiSelectCellMutationRunner editMultiSelectCellMutationRunner;
 
+    @Autowired
+    private FormWithViewTableDescriptionProvider formWithViewTableDescriptionProvider;
+
     @BeforeEach
     public void beforeEach() {
         this.givenInitialServerState.initialize();
     }
 
     private Flux<Object> givenSubscriptionToFormWithTableWidget() {
-        var input = new CreateRepresentationInput(UUID.randomUUID(), PapayaIdentifiers.PAPAYA_PROJECT.toString(), FormWithTableDescriptionProvider.TASK_FORM_ID,
+        var input = new CreateRepresentationInput(UUID.randomUUID(), PapayaIdentifiers.PAPAYA_EDITING_CONTEXT_ID.toString(), FormWithTableDescriptionProvider.TASK_FORM_ID,
                 PapayaIdentifiers.FIRST_ITERATION_OBJECT.toString(), "FormWithTable");
         return this.givenCreatedFormSubscription.createAndSubscribe(input);
     }
@@ -153,7 +157,7 @@ public class TableControllerTests extends AbstractIntegrationTests {
                 }, () -> fail("Missing form"));
 
         Runnable editNameTextfieldCell = () -> {
-            var input = new EditTextfieldCellInput(UUID.randomUUID(), PapayaIdentifiers.PAPAYA_PROJECT.toString(), formId.get(), tableId.get(), textfieldCellId.get(), "newName");
+            var input = new EditTextfieldCellInput(UUID.randomUUID(), PapayaIdentifiers.PAPAYA_EDITING_CONTEXT_ID.toString(), formId.get(), tableId.get(), textfieldCellId.get(), "newName");
             var result = this.editTextfieldCellMutationRunner.run(input);
 
             String typename = JsonPath.read(result, "$.data.editTextfieldCell.__typename");
@@ -163,7 +167,7 @@ public class TableControllerTests extends AbstractIntegrationTests {
         Consumer<Object> editNameConsumer = this.getEditNameConsumer(tableId, selectCellId);
 
         Runnable editPrioritySelectCell = () -> {
-            var input = new EditSelectCellInput(UUID.randomUUID(), PapayaIdentifiers.PAPAYA_PROJECT.toString(), formId.get(), tableId.get(), selectCellId.get(), "P2");
+            var input = new EditSelectCellInput(UUID.randomUUID(), PapayaIdentifiers.PAPAYA_EDITING_CONTEXT_ID.toString(), formId.get(), tableId.get(), selectCellId.get(), "P2");
             var result = this.editSelectCellMutationRunner.run(input);
 
             String typename = JsonPath.read(result, "$.data.editSelectCell.__typename");
@@ -173,7 +177,7 @@ public class TableControllerTests extends AbstractIntegrationTests {
         Consumer<Object> editPriorityConsumer = this.getEditPriorityConsumer(tableId, multiSelectCellId);
 
         Runnable editDependenciesMultiSelectCell = () -> {
-            var input = new EditMultiSelectCellInput(UUID.randomUUID(), PapayaIdentifiers.PAPAYA_PROJECT.toString(), formId.get(), tableId.get(), multiSelectCellId.get(), List.of("e6e8f081-27f5-40e3-a8ab-1e6f0f13df12", "e1c5bd66-54c2-45f1-ae3a-99d3f039affd"));
+            var input = new EditMultiSelectCellInput(UUID.randomUUID(), PapayaIdentifiers.PAPAYA_EDITING_CONTEXT_ID.toString(), formId.get(), tableId.get(), multiSelectCellId.get(), List.of("e6e8f081-27f5-40e3-a8ab-1e6f0f13df12", "e1c5bd66-54c2-45f1-ae3a-99d3f039affd"));
             var result = this.editMultiSelectCellMutationRunner.run(input);
 
             String typename = JsonPath.read(result, "$.data.editMultiSelectCell.__typename");
@@ -183,7 +187,7 @@ public class TableControllerTests extends AbstractIntegrationTests {
         Consumer<Object> editDependenciesConsumer = this.getEditDependenciesConsumer(tableId, checkboxCellId);
 
         Runnable editIsDoneCheckboxCell = () -> {
-            var input = new EditCheckboxCellInput(UUID.randomUUID(), PapayaIdentifiers.PAPAYA_PROJECT.toString(), formId.get(), tableId.get(), checkboxCellId.get(), true);
+            var input = new EditCheckboxCellInput(UUID.randomUUID(), PapayaIdentifiers.PAPAYA_EDITING_CONTEXT_ID.toString(), formId.get(), tableId.get(), checkboxCellId.get(), true);
             var result = this.editCheckboxCellMutationRunner.run(input);
 
             String typename = JsonPath.read(result, "$.data.editCheckboxCell.__typename");
@@ -202,6 +206,38 @@ public class TableControllerTests extends AbstractIntegrationTests {
                 .consumeNextWith(editDependenciesConsumer)
                 .then(editIsDoneCheckboxCell)
                 .consumeNextWith(editIsDoneConsumer)
+                .thenCancel()
+                .verify(Duration.ofSeconds(10));
+    }
+
+    @Test
+    @GivenSiriusWebServer
+    @DisplayName("Given a form with a view based table widget, when it is displayed, then it is properly initialized")
+    public void givenFormWithViewBasedTableWidgetWhenItIsDisplayedThenItIsProperlyInitialized() {
+        var input = new CreateRepresentationInput(
+                UUID.randomUUID(),
+                PapayaIdentifiers.PAPAYA_EDITING_CONTEXT_ID.toString(),
+                this.formWithViewTableDescriptionProvider.getRepresentationDescriptionId(),
+                PapayaIdentifiers.SIRIUS_WEB_DOMAIN_PACKAGE.toString(),
+                "FormWithViewTable");
+        var flux = this.givenCreatedFormSubscription.createAndSubscribe(input);
+
+        Consumer<Object> initialFormContentConsumer = payload -> Optional.of(payload).filter(FormRefreshedEventPayload.class::isInstance).map(FormRefreshedEventPayload.class::cast)
+                .map(FormRefreshedEventPayload::form).ifPresentOrElse(form -> {
+                    var tableWidget = new FormNavigator(form).page("Page").group("Group").findWidget("Types", TableWidget.class);
+                    assertThat(tableWidget.getTable().getColumns()).hasSize(1);
+                    assertThat(tableWidget.getTable().getLines()).hasSize(2);
+                    assertThat(tableWidget.getTable().getLines().stream().flatMap(line -> line.getCells().stream()).toList()).hasSize(2);
+                    Line line = tableWidget.getTable().getLines().get(0);
+                    LineNavigator lineNavigator = new LineNavigator(line);
+
+                    TableNavigator tableNavigator = new TableNavigator(tableWidget.getTable());
+                    assertThat(lineNavigator.textfieldCellByColumnId(tableNavigator.column("Name").getId())).hasValue("Success");
+
+                }, () -> fail("Missing form"));
+
+        StepVerifier.create(flux)
+                .consumeNextWith(initialFormContentConsumer)
                 .thenCancel()
                 .verify(Duration.ofSeconds(10));
     }

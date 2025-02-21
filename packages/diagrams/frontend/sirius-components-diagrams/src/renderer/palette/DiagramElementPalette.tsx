@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2023, 2024 Obeo.
+ * Copyright (c) 2023, 2025 Obeo.
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
  * which accompanies this distribution, and is available at
@@ -11,9 +11,11 @@
  *     Obeo - initial API and implementation
  *******************************************************************************/
 
-import { memo, useContext } from 'react';
+import { Edge, Node, useStoreApi } from '@xyflow/react';
+import { memo, useCallback, useContext } from 'react';
 import { DiagramContext } from '../../contexts/DiagramContext';
 import { DiagramContextValue } from '../../contexts/DiagramContext.types';
+import { EdgeData, NodeData } from '../DiagramRenderer.types';
 import { useDiagramDirectEdit } from '../direct-edit/useDiagramDirectEdit';
 import { DiagramElementPaletteProps } from './DiagramElementPalette.types';
 import { Palette } from './Palette';
@@ -27,13 +29,30 @@ export const DiagramElementPalette = memo(
     const { setCurrentlyEditedLabelId, currentlyEditedLabelId } = useDiagramDirectEdit();
 
     //If the Palette search field has the focus on, the useKeyPress from reactflow ignore the key pressed event.
-    const onEscape = () => {
+    const onClose = () => {
       hideDiagramElementPalette();
+
+      // Focus the diagram
+      store.getState().domNode?.focus();
     };
 
-    if (readOnly) {
-      return null;
-    }
+    const store = useStoreApi<Node<NodeData>, Edge<EdgeData>>();
+
+    const onKeyDown = useCallback(
+      (event: React.KeyboardEvent<Element>) => {
+        const { key } = event;
+        if (isOpened && key === 'Escape') {
+          // Stop propagating the event in order to keep the node/edge selected
+          event.stopPropagation();
+
+          hideDiagramElementPalette();
+
+          // Focus the diagram
+          store.getState().domNode?.focus();
+        }
+      },
+      [hideDiagramElementPalette, isOpened]
+    );
 
     const handleDirectEditClick = () => {
       if (labelId) {
@@ -41,16 +60,22 @@ export const DiagramElementPalette = memo(
       }
     };
 
+    if (readOnly) {
+      return null;
+    }
+
     return isOpened && x && y && !currentlyEditedLabelId ? (
       <PalettePortal>
-        <Palette
-          x={x}
-          y={y}
-          diagramElementId={diagramElementId}
-          targetObjectId={targetObjectId}
-          onDirectEditClick={handleDirectEditClick}
-          onEscape={onEscape}
-        />
+        <div onKeyDown={onKeyDown}>
+          <Palette
+            x={x}
+            y={y}
+            diagramElementId={diagramElementId}
+            targetObjectId={targetObjectId}
+            onDirectEditClick={handleDirectEditClick}
+            onClose={onClose}
+          />
+        </div>
       </PalettePortal>
     ) : null;
   }

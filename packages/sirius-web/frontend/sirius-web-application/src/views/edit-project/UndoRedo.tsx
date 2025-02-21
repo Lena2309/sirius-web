@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2024 Obeo.
+ * Copyright (c) 2024, 2025 Obeo.
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
  * which accompanies this distribution, and is available at
@@ -13,8 +13,6 @@
 
 import { gql, useMutation } from '@apollo/client';
 import { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-import { EditProjectViewParams } from './EditProjectView.types';
 import {
   GQLRedoData,
   GQLRedoInput,
@@ -24,6 +22,7 @@ import {
   GQLUndoRedoItemPayload,
   GQLUndoVariables,
 } from './UndoRedo.types';
+import { useCurrentProject } from './useCurrentProject';
 
 const undoMutation = gql`
   mutation undo($input: UndoInput!) {
@@ -59,7 +58,8 @@ const isSuccessPayload = (payload: GQLUndoRedoItemPayload): payload is GQLSucces
 export const UndoRedo = ({ children }: { children: React.ReactNode }) => {
   const [undo, { data: undoData }] = useMutation<GQLUndoData, GQLUndoVariables>(undoMutation);
   const [redo, { data: redoData }] = useMutation<GQLRedoData, GQLUndoVariables>(redoMutation);
-  const { projectId } = useParams<EditProjectViewParams>();
+
+  const { project } = useCurrentProject();
 
   useEffect(() => {
     sessionStorage.setItem('undoStack', JSON.stringify([]));
@@ -73,7 +73,7 @@ export const UndoRedo = ({ children }: { children: React.ReactNode }) => {
       if (arr[0]) {
         const input: GQLUndoInput = {
           id: crypto.randomUUID(),
-          editingContextId: projectId,
+          editingContextId: project.currentEditingContext.id,
           mutationId: arr[0],
         };
         undo({ variables: { input } });
@@ -88,7 +88,7 @@ export const UndoRedo = ({ children }: { children: React.ReactNode }) => {
       if (arr[0]) {
         const input: GQLRedoInput = {
           id: crypto.randomUUID(),
-          editingContextId: projectId,
+          editingContextId: project.currentEditingContext.id,
           mutationId: arr[0],
         };
         redo({ variables: { input } });
@@ -141,7 +141,7 @@ export const UndoRedo = ({ children }: { children: React.ReactNode }) => {
   };
 
   const redoKeyPressHandler = (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+    if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
       redoLastAction();
     }
   };

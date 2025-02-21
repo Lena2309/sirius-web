@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2024 Obeo.
+ * Copyright (c) 2024, 2025 Obeo.
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
  * which accompanies this distribution, and is available at
@@ -21,8 +21,10 @@ import { PinUnPinToolProps } from './PinUnPinTool.types';
 
 const useStyle = makeStyles()((theme) => ({
   toolIcon: {
-    width: theme.spacing(4.5),
+    minWidth: theme.spacing(3),
+    minHeight: theme.spacing(3),
     color: theme.palette.text.primary,
+    padding: 0,
   },
 }));
 
@@ -38,7 +40,7 @@ export const PinUnPinTool = ({ diagramElementId, isPined }: PinUnPinToolProps) =
           aria-label="Unpin element"
           onClick={() => pinDiagramElements([diagramElementId], false)}
           data-testid="Unpin-element">
-          <UnpinIcon fontSize="small" />
+          <UnpinIcon sx={{ fontSize: 16 }} />
         </IconButton>
       </Tooltip>
     );
@@ -51,7 +53,7 @@ export const PinUnPinTool = ({ diagramElementId, isPined }: PinUnPinToolProps) =
           aria-label="Pin element"
           onClick={() => pinDiagramElements([diagramElementId], true)}
           data-testid="Pin-element">
-          <PinIcon fontSize="small" />
+          <PinIcon sx={{ fontSize: 16 }} />
         </IconButton>
       </Tooltip>
     );

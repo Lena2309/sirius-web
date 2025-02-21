@@ -25,10 +25,8 @@ import org.eclipse.sirius.web.application.editingcontext.services.api.IEditingCo
 import org.eclipse.sirius.web.application.editingcontext.services.api.IEditingContextMigrationParticipantPredicate;
 import org.eclipse.sirius.web.application.editingcontext.services.api.IResourceLoader;
 import org.eclipse.sirius.web.domain.boundedcontexts.semanticdata.SemanticData;
-import org.eclipse.sirius.web.domain.boundedcontexts.semanticdata.services.api.ISemanticDataSearchService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.jdbc.core.mapping.AggregateReference;
 import org.springframework.stereotype.Service;
 
 /**
@@ -41,8 +39,6 @@ public class EditingContextLoader implements IEditingContextLoader {
 
     private final Logger logger = LoggerFactory.getLogger(EditingContextLoader.class);
 
-    private final ISemanticDataSearchService semanticDataSearchService;
-
     private final IResourceLoader resourceLoader;
 
     private final List<IEditingContextRepresentationDescriptionProvider> representationDescriptionProviders;
@@ -51,19 +47,17 @@ public class EditingContextLoader implements IEditingContextLoader {
 
     private final List<IEditingContextMigrationParticipantPredicate> migrationParticipantPredicates;
 
-    public EditingContextLoader(ISemanticDataSearchService semanticDataSearchService, IResourceLoader resourceLoader, List<IEditingContextRepresentationDescriptionProvider> representationDescriptionProviders, List<IEditingContextProcessor> editingContextProcessors, List<IEditingContextMigrationParticipantPredicate> migrationParticipantPredicates) {
-        this.semanticDataSearchService = Objects.requireNonNull(semanticDataSearchService);
+    public EditingContextLoader(IResourceLoader resourceLoader, List<IEditingContextRepresentationDescriptionProvider> representationDescriptionProviders, List<IEditingContextProcessor> editingContextProcessors, List<IEditingContextMigrationParticipantPredicate> migrationParticipantPredicates) {
         this.resourceLoader = Objects.requireNonNull(resourceLoader);
         this.representationDescriptionProviders = Objects.requireNonNull(representationDescriptionProviders);
         this.editingContextProcessors = Objects.requireNonNull(editingContextProcessors);
         this.migrationParticipantPredicates = Objects.requireNonNull(migrationParticipantPredicates);
     }
 
-    public void load(EditingContext editingContext, String projectId) {
+    public void load(EditingContext editingContext, SemanticData semanticData) {
         this.editingContextProcessors.forEach(processor -> processor.preProcess(editingContext));
 
-        this.semanticDataSearchService.findByProject(AggregateReference.to(projectId))
-                .ifPresent(semanticData -> this.loadSemanticData(editingContext, semanticData));
+        this.loadSemanticData(editingContext, semanticData);
 
         this.representationDescriptionProviders.forEach(representationDescriptionProvider -> {
             var representationDescriptions = representationDescriptionProvider.getRepresentationDescriptions(editingContext);

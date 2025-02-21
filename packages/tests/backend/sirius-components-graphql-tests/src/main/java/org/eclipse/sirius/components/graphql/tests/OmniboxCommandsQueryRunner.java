@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2024 Obeo.
+ * Copyright (c) 2024, 2025 Obeo.
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
  * which accompanies this distribution, and is available at
@@ -29,19 +29,18 @@ public class OmniboxCommandsQueryRunner implements IQueryRunner {
 
     private static final String OMNIBOX_COMMANDS = """
             query getOmniboxCommands($contextEntries: [OmniboxContextEntry!]!, $query: String!) {
-                viewer {
-                  omniboxCommands(contextEntries: $contextEntries, query: $query) {
-                    edges {
-                      node {
-                        id
-                        label
-                        kind
-                        iconURLs
-                      }
+              viewer {
+                omniboxCommands(contextEntries: $contextEntries, query: $query) {
+                  edges {
+                    node {
+                      id
+                      label
+                      iconURLs
                     }
                   }
                 }
               }
+            }
             """;
 
     private final IGraphQLRequestor graphQLRequestor;

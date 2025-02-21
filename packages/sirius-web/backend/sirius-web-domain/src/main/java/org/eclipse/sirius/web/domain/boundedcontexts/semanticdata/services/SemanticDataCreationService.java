@@ -12,15 +12,16 @@
  *******************************************************************************/
 package org.eclipse.sirius.web.domain.boundedcontexts.semanticdata.services;
 
+import java.util.List;
 import java.util.Objects;
-import java.util.Set;
 
 import org.eclipse.sirius.components.events.ICause;
-import org.eclipse.sirius.web.domain.boundedcontexts.project.Project;
+import org.eclipse.sirius.web.domain.boundedcontexts.semanticdata.Document;
 import org.eclipse.sirius.web.domain.boundedcontexts.semanticdata.SemanticData;
 import org.eclipse.sirius.web.domain.boundedcontexts.semanticdata.repositories.ISemanticDataRepository;
 import org.eclipse.sirius.web.domain.boundedcontexts.semanticdata.services.api.ISemanticDataCreationService;
-import org.springframework.data.jdbc.core.mapping.AggregateReference;
+import org.eclipse.sirius.web.domain.services.IResult;
+import org.eclipse.sirius.web.domain.services.Success;
 import org.springframework.stereotype.Service;
 
 /**
@@ -38,11 +39,13 @@ public class SemanticDataCreationService implements ISemanticDataCreationService
     }
 
     @Override
-    public void initialize(ICause cause, AggregateReference<Project, String> project) {
+    public IResult<SemanticData> create(ICause cause, List<Document> documents, List<String> domains) {
         var semanticData = SemanticData.newSemanticData()
-                .project(project)
-                .documents(Set.of())
+                .documents(documents)
+                .domains(domains)
                 .build(cause);
         this.semanticDataRepository.save(semanticData);
+
+        return new Success<>(semanticData);
     }
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2024 Obeo.
+ * Copyright (c) 2024, 2025 Obeo.
  * This program and the accompanying materials
  * are made available under the terms of the Eclipse Public License v2.0
  * which accompanies this distribution, and is available at
@@ -20,8 +20,10 @@ import { FadeElementToolProps } from './FadeElementTool.types';
 
 const useStyle = makeStyles()((theme) => ({
   toolIcon: {
-    width: theme.spacing(4.5),
+    minWidth: theme.spacing(3),
+    minHeight: theme.spacing(3),
     color: theme.palette.text.primary,
+    padding: 0,
   },
 }));
 
@@ -37,7 +39,7 @@ export const FadeElementTool = ({ diagramElementId, isFaded }: FadeElementToolPr
           aria-label="Unfade element"
           onClick={() => fadeDiagramElements([diagramElementId], false)}
           data-testid="Fade-element">
-          <TonalityIcon fontSize="small" />
+          <TonalityIcon sx={{ fontSize: 16 }} />
         </IconButton>
       </Tooltip>
     );
@@ -50,7 +52,7 @@ export const FadeElementTool = ({ diagramElementId, isFaded }: FadeElementToolPr
           aria-label="Fade element"
           onClick={() => fadeDiagramElements([diagramElementId], true)}
           data-testid="Fade-element">
-          <TonalityIcon fontSize="small" />
+          <TonalityIcon sx={{ fontSize: 16 }} />
         </IconButton>
       </Tooltip>
     );
