@@ -1,9 +1,9 @@
 package org.eclipse.sirius.web.ai.service;
 
-import org.eclipse.sirius.components.core.api.IEditingContextSearchService;
 import org.eclipse.sirius.web.ai.dto.AiRequestInput;
 import org.eclipse.sirius.components.collaborative.api.IRepresentationSearchService;
 import org.eclipse.sirius.components.core.api.IEditingContext;
+import org.eclipse.sirius.components.core.api.IEditingContextSearchService;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.components.diagrams.Diagram;
 import org.eclipse.sirius.components.diagrams.Edge;
@@ -54,15 +54,13 @@ public class AiToolService {
     }
 
     public IEditingContext getEditingContext() {
-        this.refreshEditingContext();
-        return this.editingContext;
-    }
-
-    private void refreshEditingContext() {
-        if (this.input instanceof AiRequestInput aiRequestInput) {
-            var optionalEditingContext = this.editingContextSearchService.findById(aiRequestInput.editingContextId());
-            this.editingContext = optionalEditingContext.orElse(null);
+        if(this.editingContext == null) {
+            if (this.input instanceof AiRequestInput aiRequestInput) {
+                var optionalEditingContext = this.editingContextSearchService.findById(aiRequestInput.editingContextId());
+                this.editingContext = optionalEditingContext.orElse(null);
+            }
         }
+        return this.editingContext;
     }
 
     public Diagram getDiagram() {

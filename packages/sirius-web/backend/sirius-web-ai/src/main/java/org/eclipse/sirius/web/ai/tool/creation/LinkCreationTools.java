@@ -19,7 +19,6 @@ import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -31,12 +30,12 @@ public class LinkCreationTools implements AiTool {
 
     private final AiToolService aiToolService;
 
-    public LinkCreationTools(@Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
-                             GetConnectorToolsEventHandler getConnectorToolsEventHandler,
-                             AiToolService aiToolService) {
-        this.editingContextEventProcessorRegistry = Objects.requireNonNull(editingContextEventProcessorRegistry);
-        this.getConnectorToolsEventHandler = Objects.requireNonNull(getConnectorToolsEventHandler);
-        this.aiToolService = Objects.requireNonNull(aiToolService);
+    public LinkCreationTools(AiToolService aiToolService,
+                             @Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
+                             GetConnectorToolsEventHandler getConnectorToolsEventHandler) {
+        this.aiToolService = aiToolService;
+        this.editingContextEventProcessorRegistry = editingContextEventProcessorRegistry;
+        this.getConnectorToolsEventHandler = getConnectorToolsEventHandler;
     }
 
     @Override
@@ -50,24 +49,13 @@ public class LinkCreationTools implements AiTool {
 
     @Tool("Retrieve a list of available operations for linking objects together, structured as {link name, operation id}. Links can be directed, if there are no available operations, try switching source and target. This does not create the link.")
     public List<PairDiagramElement> getLinkOperations(@P("The object id that will serve as source.") String sourceObjectId, @P("The object id that will serve as target.") String targetObjectId) {
-        UUID decompressedSourceId;
-        UUID decompressedTargetId;
-
-        try {
-            decompressedSourceId = UUIDConverter.decompress(sourceObjectId);
-            decompressedTargetId = UUIDConverter.decompress(targetObjectId);
-        } catch (Exception e) {
-            throw new UnsupportedOperationException("Source or target object id is not in the correct format.");
-        }
-
         this.aiToolService.refreshDiagram();
         var linkOperations = new ArrayList<PairDiagramElement>();
 
-        var sourceNode = this.aiToolService.findNode(decompressedSourceId.toString());
-        var targetNode = this.aiToolService.findNode(decompressedTargetId.toString());
+        var sourceNode = this.aiToolService.findNode(UUIDConverter.decompress(sourceObjectId).toString());
+        var targetNode = this.aiToolService.findNode(UUIDConverter.decompress(targetObjectId).toString());
 
-        Objects.requireNonNull(sourceNode);
-        Objects.requireNonNull(targetNode);
+        assert sourceNode != null && targetNode != null;
         var connectorInput = new GetConnectorToolsInput(
                 UUID.randomUUID(),
                 this.aiToolService.getEditingContextId(),
@@ -103,32 +91,21 @@ public class LinkCreationTools implements AiTool {
 
     @Tool("Perform the linking operation, thus creates a new link. Returns the new link's id.")
     public String linkObjects(@P("The id of the operation to perform.") String linkOperationId, @P("The id of the source object.") String sourceObjectId, @P("The id of the target object.") String targetObjectId) {
-        UUID decompressedOperationId;
-        UUID decompressedSourceId;
-        UUID decompressedTargetId;
-
-        try {
-            decompressedOperationId = UUIDConverter.decompress(linkOperationId);
-            decompressedSourceId = UUIDConverter.decompress(sourceObjectId);
-            decompressedTargetId = UUIDConverter.decompress(targetObjectId);
-        } catch (Exception e) {
-            throw new UnsupportedOperationException("Operation, source or target object id is not in the correct format.");
-        }
-
         var diagramInput = new InvokeSingleClickOnTwoDiagramElementsToolInput(
                 UUID.randomUUID(),
                 this.aiToolService.getEditingContextId(),
                 this.aiToolService.getRepresentationId(),
-                decompressedSourceId.toString(),
-                decompressedTargetId.toString(),
+                UUIDConverter.decompress(sourceObjectId).toString(),
+                UUIDConverter.decompress(targetObjectId).toString(),
                 0.0,
                 0.0,
                 0.0,
                 0.0,
-                decompressedOperationId.toString(),
+                UUIDConverter.decompress(linkOperationId).toString(),
                 List.of()
         );
 
+        this.aiToolService.refreshDiagram();
         var alreadyExistingLinks = this.aiToolService.getDiagram().getEdges();
 
         this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(diagramInput.editingContextId())

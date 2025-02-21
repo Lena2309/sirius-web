@@ -2,23 +2,25 @@ package org.eclipse.sirius.web.ai.tool.creation;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import org.eclipse.sirius.components.collaborative.diagrams.dto.*;
 import org.eclipse.sirius.web.ai.service.AiToolService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.util.PairDiagramElement;
 import org.eclipse.sirius.web.ai.util.UUIDConverter;
+import org.eclipse.sirius.components.collaborative.diagrams.dto.GetPaletteInput;
+import org.eclipse.sirius.components.collaborative.diagrams.dto.GetPaletteSuccessPayload;
+import org.eclipse.sirius.components.collaborative.diagrams.dto.InvokeSingleClickOnDiagramElementToolInput;
+import org.eclipse.sirius.components.collaborative.diagrams.dto.ToolSection;
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.components.core.api.IPayload;
+import org.eclipse.sirius.components.diagrams.Node;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 
@@ -30,8 +32,8 @@ public class ObjectCreationTools implements AiTool {
 
     public ObjectCreationTools(@Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
                                AiToolService aiToolService) {
-        this.editingContextEventProcessorRegistry = Objects.requireNonNull(editingContextEventProcessorRegistry);
-        this.aiToolService = Objects.requireNonNull(aiToolService);
+        this.editingContextEventProcessorRegistry = editingContextEventProcessorRegistry;
+        this.aiToolService = aiToolService;
     }
 
     @Override
@@ -45,33 +47,30 @@ public class ObjectCreationTools implements AiTool {
 
     @Tool("Retrieve the list of available creation operations at root structured as {type of the object to create, operation id}")
     public List<PairDiagramElement> getAvailableRootObjectCreationOperations() {
-        var paletteInput = new GetPaletteInput(
-                UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
-                this.aiToolService.getRepresentationId()
-        );
+        this.aiToolService.refreshDiagram();
 
-        return getCreationTools(paletteInput);
+            var paletteInput = new GetPaletteInput(
+                    UUID.randomUUID(),
+                    this.aiToolService.getEditingContextId(),
+                    this.aiToolService.getRepresentationId(),
+                    this.aiToolService.getRepresentationId()
+            );
+
+            return getCreationTools(paletteInput);
     }
 
     @Tool("Retrieve the list of available child creation operations structured as {type of the child to create, operation id}")
     public List<PairDiagramElement> getAvailableChildCreationOperations(@P("The parent id.") String parentId) {
-        UUID parentIdConverted;
-        try {
-            parentIdConverted = UUIDConverter.decompress(parentId);
-        } catch (Exception e) {
-            throw new UnsupportedOperationException("Parent id is not in the correct format.");
-        }
+        this.aiToolService.refreshDiagram();
 
-        var paletteInput = new GetPaletteInput(
-                UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
-                parentIdConverted.toString()
-        );
+            var paletteInput = new GetPaletteInput(
+                    UUID.randomUUID(),
+                    this.aiToolService.getEditingContextId(),
+                    this.aiToolService.getRepresentationId(),
+                    UUIDConverter.decompress(parentId).toString()
+            );
 
-        return getCreationTools(paletteInput);
+            return getCreationTools(paletteInput);
     }
 
     private List<PairDiagramElement> getCreationTools(IInput input) {
@@ -82,7 +81,6 @@ public class ObjectCreationTools implements AiTool {
             this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(paletteInput.editingContextId())
                     .ifPresent(processor -> payload.set(processor.handle(paletteInput)));
 
-            Objects.requireNonNull(payload.get());
             payload.get().subscribe(invokePayload -> {
                 if (invokePayload instanceof GetPaletteSuccessPayload successPayload) {
                     successPayload.palette().paletteEntries().stream()
@@ -107,114 +105,78 @@ public class ObjectCreationTools implements AiTool {
 
     @Tool("Perform the creation operation at root. Returns the new object's id. The id should not be modified.")
     public String createObjectAtRoot(@P("The id of the operation to execute.") String operationId) {
-        UUID decompressedOperationId;
-
-        try {
-            decompressedOperationId = UUIDConverter.decompress(operationId);
-        } catch (Exception e) {
-            throw new UnsupportedOperationException("Operation id is not in the correct format.");
-        }
-
-        var diagramInput = new InvokeSingleClickOnDiagramElementToolInput(
-                UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
-                this.aiToolService.getRepresentationId(),
-                decompressedOperationId.toString(),
-                0.0,
-                0.0,
-                List.of()
-        );
+            var diagramInput = new InvokeSingleClickOnDiagramElementToolInput(
+                    UUID.randomUUID(),
+                    this.aiToolService.getEditingContextId(),
+                    this.aiToolService.getRepresentationId(),
+                    this.aiToolService.getRepresentationId(),
+                    UUIDConverter.decompress(operationId).toString(),
+                    0.0,
+                    0.0,
+                    List.of()
+            );
 
         this.aiToolService.refreshDiagram();
-        var alreadyExistingObjects = new ArrayList<>();
+            var alreadyExistingObjects = new ArrayList<>();
 
-        for (var node : this.aiToolService.getDiagram().getNodes()) {
-            alreadyExistingObjects.add(node.getId());
-        }
-
-        String newObjectId = null;
-
-        var payload = new AtomicReference<Mono<IPayload>>();
-        this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(diagramInput.editingContextId())
-                .ifPresent(processor -> payload.set(processor.handle(diagramInput)));
-
-        var objectCreated = new AtomicBoolean(false);
-        payload.get().subscribe(invokePayload -> {
-            if (invokePayload instanceof InvokeSingleClickOnDiagramElementToolSuccessPayload) {
-                objectCreated.set(true);
+            for (Node node : this.aiToolService.getDiagram().getNodes()) {
+                alreadyExistingObjects.add(node.getId());
             }
-        });
 
-        if (!objectCreated.get()) {
-            return "Failed to create object.";
-        }
+            var newObjectId = "Failed to create object.";
+
+            this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(diagramInput.editingContextId())
+                    .ifPresent(processor -> processor.handle(diagramInput));
 
         this.aiToolService.refreshDiagram();
 
-        for (var node : this.aiToolService.getDiagram().getNodes()) {
-            if (!alreadyExistingObjects.contains(node.getId())) {
-                newObjectId = node.getId();
+            for (Node node : this.aiToolService.getDiagram().getNodes()) {
+                if (!alreadyExistingObjects.contains(node.getId())) {
+                    newObjectId = node.getId();
+                }
             }
-        }
 
-        return UUIDConverter.compress(newObjectId);
+            return UUIDConverter.compress(newObjectId);
     }
 
     @Tool("Perform the creation operation. Returns the new child's id. The id should not be modified.")
-    public String createChild(@P("The parent's id.") String parentId, @P("The type of the child.") String childType, @P("The id of the operation to perform.") String operationId) {
-        UUID decompressedOperationId;
-        UUID decompressedParentId;
+    public String createChild(@P("The id of the operation to perform.") String operationId, @P("The parent's id .") String parentId) {
 
-        try {
-            decompressedOperationId = UUIDConverter.decompress(operationId);
-            decompressedParentId = UUIDConverter.decompress(parentId);
-        } catch (Exception e) {
-            throw new UnsupportedOperationException("Parent or Child id is not in the correct format.");
-        }
+            var diagramInput = new InvokeSingleClickOnDiagramElementToolInput(
+                    UUID.randomUUID(),
+                    this.aiToolService.getEditingContextId(),
+                    this.aiToolService.getRepresentationId(),
+                    UUIDConverter.decompress(parentId).toString(),
+                    UUIDConverter.decompress(operationId).toString(),
+                    0.0,
+                    0.0,
+                    List.of()
+            );
 
-        var diagramInput = new InvokeSingleClickOnDiagramElementToolInput(
-                UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
-                decompressedParentId.toString(),
-                decompressedOperationId.toString(),
-                0.0,
-                0.0,
-                List.of()
-        );
+        this.aiToolService.refreshDiagram();
 
         var parentNode = this.aiToolService.findNode(UUIDConverter.decompress(parentId).toString());
         var alreadyExistingChildren = parentNode.getChildNodes();
 
-        String newChildId = null;
+        var newChildId = "Failed to create object.";
 
-        var payload = new AtomicReference<Mono<IPayload>>();
         this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(diagramInput.editingContextId())
-                .ifPresent(processor -> payload.set(processor.handle(diagramInput)));
-
-        var objectCreated = new AtomicBoolean(false);
-        payload.get().subscribe(invokePayload -> {
-            if (invokePayload instanceof InvokeSingleClickOnDiagramElementToolSuccessPayload) {
-                objectCreated.set(true);
-            }
-        });
-
-        if (!objectCreated.get()) {
-            return "Failed to create child.";
-        }
+                .ifPresent(processor -> processor.handle(diagramInput));
 
         this.aiToolService.refreshDiagram();
 
         parentNode = this.aiToolService.findNode(UUIDConverter.decompress(parentId).toString());
 
-        var newChildren = parentNode.getChildNodes().stream()
-                .filter(child -> !alreadyExistingChildren.contains(child)).toList();
+        var newChild = parentNode.getChildNodes().stream()
+                .filter(child -> !alreadyExistingChildren.contains(child))
+                .findFirst();
 
-        for (var child : newChildren) {
-            if (child.getTargetObjectKind().contains(childType.replace(" ", ""))) {
+        assert newChild.isPresent();
+        newChildId = newChild.get().getId();
+
+        for (Node child : parentNode.getChildNodes()) {
+            if (!alreadyExistingChildren.contains(child)) {
                 newChildId = child.getId();
-                break;
             }
         }
 
