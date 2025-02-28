@@ -7,6 +7,7 @@ import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 import org.eclipse.sirius.web.ai.service.ToolCallService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.tool.creation.ObjectCreationTools;
@@ -20,6 +21,10 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+
+import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O;
+import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O_MINI;
 
 @Service
 public class ObjectAgent implements DiagramAgent {
@@ -29,16 +34,16 @@ public class ObjectAgent implements DiagramAgent {
 
     private final List<AiTool> toolClasses = new ArrayList<>();
 
-    private final ThreadPoolTaskExecutor taskExecutor;
-
     private IInput input;
 
-    public ObjectAgent(ChatLanguageModel model, ObjectGetterTools objectGetterTools, ObjectCreationTools objectCreationTools,
-                       @Qualifier("threadPoolTaskExecutor") ThreadPoolTaskExecutor taskExecutor) {
-        this.model = model;
+    public ObjectAgent(ObjectGetterTools objectGetterTools, ObjectCreationTools objectCreationTools) {
+        this.model = OpenAiChatModel.builder()
+                .apiKey(System.getenv("OPENAI_API_KEY"))
+                .modelName(GPT_4_O)
+                .temperature(0.3)
+                .build();
         this.toolClasses.add(objectGetterTools);
         this.toolClasses.add(objectCreationTools);
-        this.taskExecutor = taskExecutor;
     }
 
     @Override
@@ -76,7 +81,7 @@ public class ObjectAgent implements DiagramAgent {
     }
 
     @Tool("Creates one or multiple children in an object. Does not edit them. Useless if the parent does not already exists.")
-    public String createChild(@P("Explain what object to create and the children it may contain. Do not mention links and properties here.") String prompt, @P("The parent id.") String parentId) {
+    public String createChild(@P("Explain what child to create within an already existing object and the children it may contain. Do not mention links and properties here.") String prompt, @P("The parent id.") String parentId) {
         List<ChatMessage> previousMessages = new ArrayList<>();
         List<ToolSpecification> specifications = new ArrayList<>();
 
@@ -92,7 +97,7 @@ public class ObjectAgent implements DiagramAgent {
         previousMessages.add(new UserMessage(prompt));
 
         ToolCallService.computeToolCalls(logger, this.model, previousMessages, this.toolClasses, specifications);
-        previousMessages.add(new UserMessage("Now, summarize the object and its potential children you created, structured as \"ObjectType created with id ObjectId\""));
+        previousMessages.add(new UserMessage("Now, summarize the object you created, you must differentiate root objects, structured as \"ObjectType created with id ObjectId\", from children, structured as \"ChildrenType child of ParentType created with id ChildId\""));
 
         return model.generate(previousMessages).content().text();
     }
