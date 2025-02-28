@@ -54,11 +54,11 @@ public class EditionToolService {
                               List<IWidgetDescriptor> widgetDescriptors,
                               IPropertiesDefaultDescriptionProvider propertiesDefaultDescriptionProvider,
                               IPropertiesDescriptionService propertiesDescriptionService) {
-        this.widgetDescriptors = widgetDescriptors;
-        this.objectService = formConfiguration.getObjectService();
-        this.formPostProcessor = formConfiguration.getFormPostProcessor();
-        this.propertiesDefaultDescriptionProvider = propertiesDefaultDescriptionProvider;
-        this.propertiesDescriptionService = propertiesDescriptionService;
+        this.widgetDescriptors = Objects.requireNonNull(widgetDescriptors);
+        this.objectService = Objects.requireNonNull(formConfiguration.getObjectService());
+        this.formPostProcessor = Objects.requireNonNull(formConfiguration.getFormPostProcessor());
+        this.propertiesDefaultDescriptionProvider = Objects.requireNonNull(propertiesDefaultDescriptionProvider);
+        this.propertiesDescriptionService = Objects.requireNonNull(propertiesDescriptionService);
     }
 
     public void setAiToolService(AiToolService aiToolService) {
@@ -100,7 +100,6 @@ public class EditionToolService {
 
         var initializer = formDescription.getVariableManagerInitializer();
         this.variableManager = initializer.apply(initialVariableManager);
-        this.aiToolService.refreshDiagram();
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -108,25 +107,25 @@ public class EditionToolService {
     // ---------------------------------------------------------------------------------------------------------------
 
     Form getFormForObject(String elementId, boolean isObject) {
-        this.aiToolService.refreshDiagram();
+        UUID decompressedElementId;
+
+        try {
+            decompressedElementId = UUIDConverter.decompress(elementId);
+        } catch (Exception e) {
+            throw new UnsupportedOperationException("id is not in the correct format.");
+        }
 
         Optional<Object> optionalObject;
         if (isObject) {
-            var node = this.aiToolService.findNode(UUIDConverter.decompress(elementId).toString());
+            var node = this.aiToolService.findNode(decompressedElementId.toString());
 
-            assert node != null;
+            Objects.requireNonNull(node);
             optionalObject = this.objectService.getObject(this.aiToolService.getEditingContext(), node.getTargetObjectId());
-            if (optionalObject.isEmpty()) {
-                optionalObject = this.objectService.getObject(this.aiToolService.getEditingContext(), node.getId());
-            }
         } else {
-            var edge = this.aiToolService.findEdge(UUIDConverter.decompress(elementId).toString());
+            var edge = this.aiToolService.findEdge(decompressedElementId.toString());
 
-            assert edge != null;
+            Objects.requireNonNull(edge);
             optionalObject = this.objectService.getObject(this.aiToolService.getEditingContext(), edge.getTargetObjectId());
-            if (optionalObject.isEmpty()) {
-                optionalObject = this.objectService.getObject(this.aiToolService.getEditingContext(), edge.getId());
-            }
         }
 
         // TODO: Node trouvé mais pas l'object
@@ -177,8 +176,8 @@ public class EditionToolService {
             }
         }
 
-        properties.put("Single Value Property", singleValueProperty);
-        properties.put("Multiple Value Property", multipleValueProperty);
+        properties.put("Single Valued Property", singleValueProperty);
+        properties.put("Multiple Valued Property", multipleValueProperty);
 
         return properties;
     }
