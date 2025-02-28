@@ -9,19 +9,22 @@ import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class LinkGetterTools implements AiTool {
     private final AiToolService aiToolService;
 
     public LinkGetterTools(AiToolService aiToolService) {
-        this.aiToolService = aiToolService;
+        this.aiToolService = Objects.requireNonNull(aiToolService);
     }
 
     @Override
     public void setInput(IInput input) {
         this.aiToolService.setInput(input);
     }
+
+    /*
 
     // ---------------------------------------------------------------------------------------------------------------
     //                                               EXISTING LINKS GETTER
@@ -41,4 +44,5 @@ public class LinkGetterTools implements AiTool {
 
         return availableLinks;
     }
+    */
 }
