@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 public class LinkEditionTools implements AiTool {
@@ -22,9 +23,9 @@ public class LinkEditionTools implements AiTool {
 
     public LinkEditionTools(@Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
                               AiToolService aiToolService, EditionToolService editionToolService) {
-        this.editingContextEventProcessorRegistry = editingContextEventProcessorRegistry;
-        this.aiToolService = aiToolService;
-        this.editionToolService = editionToolService;
+        this.editingContextEventProcessorRegistry = Objects.requireNonNull(editingContextEventProcessorRegistry);
+        this.aiToolService = Objects.requireNonNull(aiToolService);
+        this.editionToolService = Objects.requireNonNull(editionToolService);
     }
 
     @Override
@@ -50,10 +51,8 @@ public class LinkEditionTools implements AiTool {
 
     @Tool("Edit the value of an existing link property.")
     public String editLinkSingleValueProperty(String linkId, String propertyLabel, String newPropertyValue) {
-        this.aiToolService.refreshDiagram();
-
         var objectNode = this.aiToolService.findNode(UUIDConverter.decompress(linkId).toString());
-        assert objectNode != null;
+        Objects.requireNonNull(objectNode);
         var representationId = new StringBuilder("details://?objectIds=[").append(objectNode.getTargetObjectId()).append("]");
 
         var widget = this.editionToolService.getWidget(linkId, propertyLabel, false);
@@ -64,7 +63,7 @@ public class LinkEditionTools implements AiTool {
     @Tool("Edit the values of an existing link property that can contain multiple ones at once.")
     public String editLinkMultipleValueProperty(String linkId, String propertyLabel, List<String> newPropertyValues) {
         var objectNode = this.aiToolService.findNode(UUIDConverter.decompress(linkId).toString());
-        assert objectNode != null;
+        Objects.requireNonNull(objectNode);
         var representationId = new StringBuilder("details://?objectIds=[").append(objectNode.getTargetObjectId()).append("]");
 
         var widget = this.editionToolService.getWidget(linkId, propertyLabel, false);

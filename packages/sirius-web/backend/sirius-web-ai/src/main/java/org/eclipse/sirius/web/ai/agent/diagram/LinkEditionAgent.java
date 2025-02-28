@@ -7,6 +7,7 @@ import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 import org.eclipse.sirius.web.ai.service.ToolCallService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.tool.edition.LinkEditionTools;
@@ -17,6 +18,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+
+import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O;
 
 @Service
 public class LinkEditionAgent implements DiagramAgent {
@@ -28,8 +32,12 @@ public class LinkEditionAgent implements DiagramAgent {
 
     private IInput input;
 
-    public LinkEditionAgent(ChatLanguageModel model, LinkEditionTools linkEditionTools) {
-        this.model = model;
+    public LinkEditionAgent(LinkEditionTools linkEditionTools) {
+        this.model = OpenAiChatModel.builder()
+                .apiKey(System.getenv("OPENAI_API_KEY"))
+                .modelName(GPT_4_O)
+                .temperature(0.5)
+                .build();
         this.toolClasses.add(linkEditionTools);
     }
 
