@@ -14,6 +14,7 @@ import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -22,11 +23,10 @@ public class ObjectDeletionTools implements AiTool {
 
     private final AiToolService aiToolService;
 
-    public ObjectDeletionTools(AiToolService aiToolService,
-                               @Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
-                               GetConnectorToolsEventHandler getConnectorToolsEventHandler) {
-        this.aiToolService = aiToolService;
-        this.editingContextEventProcessorRegistry = editingContextEventProcessorRegistry;
+    public ObjectDeletionTools(@Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
+                               AiToolService aiToolService) {
+        this.aiToolService = Objects.requireNonNull(aiToolService);
+        this.editingContextEventProcessorRegistry = Objects.requireNonNull(editingContextEventProcessorRegistry);
     }
 
     @Override
@@ -40,16 +40,23 @@ public class ObjectDeletionTools implements AiTool {
 
     @Tool("Delete the object from the diagram.")
     public String deleteObject(@P("The id of the object to delete.") String objectId) {
+        UUID decompressedObjectId;
+
+        try {
+            decompressedObjectId = UUIDConverter.decompress(objectId);
+        } catch (Exception e) {
+            throw new UnsupportedOperationException("Object id is not in the correct format.");
+        }
+
         var deleteInput = new DeleteFromDiagramInput(
                 UUID.randomUUID(),
                 this.aiToolService.getEditingContextId(),
                 this.aiToolService.getRepresentationId(),
-                List.of(UUIDConverter.decompress(objectId).toString()),
+                List.of(decompressedObjectId.toString()),
                 List.of(),
                 DeletionPolicy.SEMANTIC
         );
 
-        this.aiToolService.refreshDiagram();
         var node = this.aiToolService.findNode(UUIDConverter.decompress(objectId).toString());
 
         this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(deleteInput.editingContextId())
