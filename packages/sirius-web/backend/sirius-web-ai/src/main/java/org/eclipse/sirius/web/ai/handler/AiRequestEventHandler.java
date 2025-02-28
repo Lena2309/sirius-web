@@ -2,7 +2,7 @@ package org.eclipse.sirius.web.ai.handler;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import org.eclipse.sirius.web.ai.agent.routing.RoutingAgent;
+import org.eclipse.sirius.web.ai.agent.routing.OrchestratorAgent;
 import org.eclipse.sirius.web.ai.dto.AiRequestInput;
 import org.eclipse.sirius.web.ai.dto.AiRequestSuccessPayload;
 import org.eclipse.sirius.components.collaborative.api.ChangeDescription;
@@ -25,14 +25,14 @@ import java.util.Objects;
 public class AiRequestEventHandler implements IEditingContextEventHandler {
     private final Logger logger = LoggerFactory.getLogger(AiRequestEventHandler.class);
 
-    private final RoutingAgent routingAgent;
+    private final OrchestratorAgent orchestratorAgent;
 
     private final IMessageService messageService;
 
     private final Counter counter;
 
-    public AiRequestEventHandler(RoutingAgent routingAgent, IMessageService messageService, MeterRegistry meterRegistry) {
-        this.routingAgent = Objects.requireNonNull(routingAgent);
+    public AiRequestEventHandler(OrchestratorAgent orchestratorAgent, IMessageService messageService, MeterRegistry meterRegistry) {
+        this.orchestratorAgent = Objects.requireNonNull(orchestratorAgent);
         this.messageService = Objects.requireNonNull(messageService);
 
         this.counter = Counter.builder(Monitoring.EVENT_HANDLER)
@@ -56,7 +56,7 @@ public class AiRequestEventHandler implements IEditingContextEventHandler {
         if (input instanceof AiRequestInput aiRequestInput) {
             try {
                 logger.info("Generating AI response");
-                this.routingAgent.compute(aiRequestInput);
+                this.orchestratorAgent.compute(aiRequestInput);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
