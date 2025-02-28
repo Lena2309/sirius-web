@@ -19,6 +19,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Sinks;
 
+import java.util.Objects;
+
 @Service
 public class AiRequestEventHandler implements IEditingContextEventHandler {
     private final Logger logger = LoggerFactory.getLogger(AiRequestEventHandler.class);
@@ -30,8 +32,8 @@ public class AiRequestEventHandler implements IEditingContextEventHandler {
     private final Counter counter;
 
     public AiRequestEventHandler(RoutingAgent routingAgent, IMessageService messageService, MeterRegistry meterRegistry) {
-        this.routingAgent = routingAgent;
-        this.messageService = messageService;
+        this.routingAgent = Objects.requireNonNull(routingAgent);
+        this.messageService = Objects.requireNonNull(messageService);
 
         this.counter = Counter.builder(Monitoring.EVENT_HANDLER)
                 .tag(Monitoring.NAME, this.getClass().getSimpleName())

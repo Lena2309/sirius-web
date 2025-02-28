@@ -23,9 +23,10 @@ public class AssistantController {
     @PostMapping("/chat")
     public void chatRequest() {
         AiRequestInput aiRequestInput = new AiRequestInput(UUID.randomUUID(),
-                "Now I want the processor inside the Composite Processor have a status inactive. Then generate a data source, that is linked to the processor inside the composite processor.",
-                "11c64a92-8bfc-432e-aaf3-7cde39c0f35b",
-                "3f2755ac-c8ad-4a52-9f8d-13657069f7ea"
+               // "Now I want the processor inside the Composite Processor to have a status inactive. Then generate a data source, that is linked to the processor inside the composite processor.",
+                "Build a computer.",
+                "dee56c04-ac12-4eab-914e-266a2abe3c08",
+                "00070f0e-d53e-47a9-ae12-5df70e53187c"
         );
 
         this.aiRequestEventHandler.handle(Sinks.one(), Sinks.many().unicast().onBackpressureBuffer(), null, aiRequestInput);

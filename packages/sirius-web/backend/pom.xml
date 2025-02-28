@@ -46,6 +46,5 @@
 		<module>sirius-web-tests</module>
 		<module>sirius-web-tests-data</module>
         <module>sirius-web-e2e-tests</module>
-		<module>sirius-web-ai</module>
     </modules>
 </project>
