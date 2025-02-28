@@ -5,6 +5,7 @@ import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 import org.eclipse.sirius.web.ai.agent.Agent;
 import org.eclipse.sirius.web.ai.agent.diagram.*;
 import org.eclipse.sirius.web.ai.agent.reason.ReasonAgent;
@@ -19,14 +20,15 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
+
+import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O;
 
 @Service
 public class RoutingAgent implements Agent {
     private final Logger logger = LoggerFactory.getLogger(RoutingAgent.class);
 
     private final ChatLanguageModel model;
-
-    private final ThreadPoolTaskExecutor taskExecutor;
 
     private final ReasonAgent reasonAgent;
 
@@ -40,26 +42,33 @@ public class RoutingAgent implements Agent {
 
     private final LinkEditionAgent linkEditionAgent;
 
-    public RoutingAgent(ChatLanguageModel model, ReasonAgent reasonAgent, DeletionAgent deletionAgent,
+    private final ThreadPoolTaskExecutor taskExecutor;
+
+    public RoutingAgent(ReasonAgent reasonAgent, DeletionAgent deletionAgent,
                         ObjectAgent objectAgent, ObjectEditionAgent objectEditionAgent,
                         LinkAgent linkAgent, LinkEditionAgent linkEditionAgent,
                         @Qualifier("threadPoolTaskExecutor") ThreadPoolTaskExecutor taskExecutor) {
-        this.model = model;
-        this.reasonAgent = reasonAgent;
-        this.deletionAgent = deletionAgent;
-        this.objectAgent = objectAgent;
-        this.objectEditionAgent = objectEditionAgent;
-        this.linkAgent = linkAgent;
-        this.linkEditionAgent = linkEditionAgent;
-        this.taskExecutor = taskExecutor;
+        this.model = OpenAiChatModel.builder()
+                .apiKey(System.getenv("OPENAI_API_KEY"))
+                .modelName(GPT_4_O)
+                .temperature(0.4)
+                .build();
+        this.reasonAgent = Objects.requireNonNull(reasonAgent);
+        this.deletionAgent = Objects.requireNonNull(deletionAgent);
+        this.objectAgent = Objects.requireNonNull(objectAgent);
+        this.objectEditionAgent = Objects.requireNonNull(objectEditionAgent);
+        this.linkAgent = Objects.requireNonNull(linkAgent);
+        this.linkEditionAgent = Objects.requireNonNull(linkEditionAgent);
+        this.taskExecutor = Objects.requireNonNull(taskExecutor);
     }
 
     public void compute(IInput input) {
         if (input instanceof AiRequestInput aiRequestInput) {
-            List<ChatMessage> previousMessages = new ArrayList<>();
-            List<ToolSpecification> specifications = new ArrayList<>();
+            var previousMessages = new ArrayList<ChatMessage>();
+            var specifications = new ArrayList<ToolSpecification>();
 
             initializeSpecifications(List.of(this.objectAgent, this.deletionAgent, this.objectEditionAgent, this.linkAgent), aiRequestInput, List.of(), specifications);
+            this.reasonAgent.setInput(aiRequestInput);
 
             previousMessages.add(new SystemMessage("""
                     You are a routing agent for Diagram Generation.
@@ -72,14 +81,14 @@ public class RoutingAgent implements Agent {
             var concepts = this.reasonAgent.think(aiRequestInput.prompt());
             previousMessages.add(new UserMessage(concepts));
 
-            previousMessages.add(new UserMessage("First, create objects accordingly."));
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.objectAgent, this.deletionAgent), this.taskExecutor);
+            previousMessages.add(new UserMessage("First, create objects accordingly and/or modify already existing elements."));
+            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.objectAgent, this.deletionAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);
 
             previousMessages.add(new UserMessage("Now, link objects together accordingly."));
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.linkAgent), this.taskExecutor);
+            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.linkAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);
 
             previousMessages.add(new UserMessage("If the previous tools (especially the linking tool) did not work, try something else. If it did work, do not call for tools."));
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.objectAgent, this.deletionAgent, this.linkAgent), this.taskExecutor);
+            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.objectAgent, this.deletionAgent, this.linkAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);
 
             previousMessages.add(new UserMessage("Now, continue with the edition of objects and links accordingly."));
             ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);

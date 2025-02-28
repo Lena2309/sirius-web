@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -114,11 +115,15 @@ public class ToolCallService {
 
                 var result = methodInvoker.invoke();
 
-                assert result != null;
+                Objects.requireNonNull(result);
                 return ToolExecutionResultMessage.from(toolExecutionRequest, result.toString());
             } catch (NoSuchMethodException ignored) {
             } catch (Exception e) {
-                logger.warn("Error while trying to call tools: ", e);
+                if (e.getCause() instanceof UnsupportedOperationException unsupported) {
+                    ToolExecutionResultMessage.from(toolExecutionRequest, unsupported.getMessage());
+                } else {
+                    logger.warn(e.toString());
+                }
             }
         }
         return null;
@@ -135,10 +140,13 @@ public class ToolCallService {
 
                     var result = methodInvoker.invoke();
 
-                    assert result != null;
+                    Objects.requireNonNull(result);
                     logger.info(result.toString());
                     agentsResults.append("Tool ").append(toolExecutionRequest.name()).append(" answered with: ").append(result);
                 } catch (Exception ignored) {
+                    if (ignored.getCause() instanceof UnsupportedOperationException unsupported) {
+                        agentsResults.append("Tool ").append(toolExecutionRequest.name()).append(" answered with: ").append(unsupported.getMessage());
+                    }
                 } finally {
                     latch.get().countDown();
                 }

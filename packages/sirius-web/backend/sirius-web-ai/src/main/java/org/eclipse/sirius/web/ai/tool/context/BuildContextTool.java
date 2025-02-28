@@ -1,0 +1,222 @@
+package org.eclipse.sirius.web.ai.tool.context;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.eclipse.emf.ecore.EClass;
+import org.eclipse.emf.ecore.EPackage;
+import org.eclipse.sirius.components.core.api.IRepresentationDescriptionSearchService;
+import org.eclipse.sirius.components.diagrams.description.DiagramDescription;
+import org.eclipse.sirius.components.diagrams.description.NodeDescription;
+import org.eclipse.sirius.components.diagrams.tools.Palette;
+import org.eclipse.sirius.web.ai.tool.AiTool;
+import org.eclipse.sirius.web.ai.service.AiToolService;
+import org.eclipse.sirius.components.core.api.IInput;
+import org.eclipse.sirius.web.ai.util.*;
+import org.eclipse.sirius.web.application.editingcontext.EditingContext;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
+import java.util.function.Predicate;
+
+@Service
+public class BuildContextTool implements AiTool {
+    private final IRepresentationDescriptionSearchService representationDescriptionSearchService;
+
+    private final AiToolService aiToolService;
+
+    public BuildContextTool(IRepresentationDescriptionSearchService representationDescriptionSearchService,
+                            AiToolService aiToolService) {
+        this.representationDescriptionSearchService = Objects.requireNonNull(representationDescriptionSearchService);
+        this.aiToolService = Objects.requireNonNull(aiToolService);
+    }
+
+    @Override
+    public void setInput(IInput input) {
+        this.aiToolService.setInput(input);
+    }
+
+    protected record Pair(String objectType, List<String> supertypes) {}
+
+    // ---------------------------------------------------------------------------------------------------------------
+    //                                                DIAGRAM DESCRIPTION GETTER
+    // ---------------------------------------------------------------------------------------------------------------
+
+    private Optional<DiagramDescription> getDiagramDescription() {
+        this.aiToolService.refreshDiagram();
+        return this.representationDescriptionSearchService.findById(this.aiToolService.getEditingContext(), aiToolService.getDiagram().getDescriptionId())
+                .filter(DiagramDescription.class::isInstance)
+                .map(DiagramDescription.class::cast);
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------
+    //                                                BUILD DOMAIN CONTEXT
+    // ---------------------------------------------------------------------------------------------------------------
+
+    public String buildDomainContext() {
+        var diagramDescription = getDiagramDescription();
+        var mapper = new ObjectMapper();
+
+        assert diagramDescription.isPresent();
+        var jsonContext = new ContextJsonFormat(
+                buildObjectContext(diagramDescription.get()),
+                buildLinkContext(diagramDescription.get())
+        );
+
+        try {
+            return mapper.writeValueAsString(jsonContext);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Error serializing to JSON", e);
+        }
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------
+    //                                                BUILD OBJECT CONTEXT
+    // ---------------------------------------------------------------------------------------------------------------
+
+    private List<JsonObject> buildObjectContext(DiagramDescription diagramDescription) {
+        var jsonRootObjects = new ArrayList<JsonObject>();
+
+        var objectTypeToNodeDescription = new HashMap<String, NodeDescription>();
+        var idToObjectType = new HashMap<String, String>();
+        var rootObjects = new ArrayList<String>();
+        var childObjects = new ArrayList<String>();
+
+        // Retrieve the nodes descriptions from the diagram description
+        diagramDescription.getNodeDescriptions().forEach(node -> extractObjectTypes(node, idToObjectType, objectTypeToNodeDescription));
+
+        // Retrieve the possible objects that can be build
+        diagramDescription.getPalettes().forEach(palette -> {
+            if (palette.getId().contains("diagramPalette")) {
+                extractPaletteObjects(palette, rootObjects);
+            } else if (palette.getId().contains("nodePalette")) {
+                extractPaletteObjects(palette, childObjects);
+            }
+        });
+
+        // Retrieve the EClasses of the domain
+        var packageRegistry = ((EditingContext) aiToolService.getEditingContext()).getDomain().getResourceSet().getPackageRegistry();
+        var firstDomain = packageRegistry.values().stream().findFirst();
+        var pairList = firstDomain.filter(EPackage.class::isInstance)
+                .map(EPackage.class::cast)
+                .map(ep -> ep.getEClassifiers().stream()
+                        .filter(EClass.class::isInstance)
+                        .map(EClass.class::cast)
+                        .filter(Predicate.not(EClass::isAbstract))
+                        .filter(ec -> !ec.getESuperTypes().isEmpty())
+                        .map(ec -> new Pair(ec.getName(), ec.getESuperTypes().stream().map(EClass::getName).toList()))
+                        .toList())
+                .orElse(List.of());
+
+        rootObjects.forEach(object -> {
+            jsonRootObjects.add(new JsonObject(object, retrieveRecursiveChildren(object,objectTypeToNodeDescription,idToObjectType,pairList)));
+        });
+
+        return jsonRootObjects;
+    }
+
+    private static List<JsonObject> retrieveRecursiveChildren(String parent, Map<String, NodeDescription> objectTypeToNodeDescription, Map<String, String> idToObjectType, List<Pair> pairs) {
+        var children = new ArrayList<JsonObject>();
+
+        // retrieve children from the node description
+        if (objectTypeToNodeDescription.containsKey(parent)) {
+            if (!objectTypeToNodeDescription.get(parent).getReusedChildNodeDescriptionIds().isEmpty()) {
+                for (var childId : objectTypeToNodeDescription.get(parent).getReusedChildNodeDescriptionIds()) {
+                    var childType = idToObjectType.get(childId);
+                    children.add(new JsonObject(childType, retrieveRecursiveChildren(childType, objectTypeToNodeDescription, idToObjectType, pairs)));
+                }
+            }
+        }
+
+        // inherit children of supertypes
+        for (var pair : pairs) {
+            if (pair.objectType.equals(parent)) {
+                for (var supertype : pair.supertypes) {
+                    children.addAll(retrieveRecursiveChildren(supertype, objectTypeToNodeDescription, idToObjectType, pairs));
+                }
+                break;
+            }
+        }
+
+        return children;
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------
+    //                                                BUILD LINK CONTEXT
+    // ---------------------------------------------------------------------------------------------------------------
+
+    private List<JsonLink> buildLinkContext(DiagramDescription diagramDescription) {
+        var links = new ArrayList<JsonLink>(List.of());
+
+        for (var link : diagramDescription.getEdgeDescriptions()) {
+            links.add(new JsonLink(extractLinkType(link.getCenterLabelDescription().getId())));
+        }
+
+        return links;
+    }
+
+    // ---------------------------------------------------------------------------------------------------------------
+    //                                                     EXTRACTORS
+    // ---------------------------------------------------------------------------------------------------------------
+
+    private static void extractObjectTypes(NodeDescription node, Map<String, String> idToObjectType, Map<String, NodeDescription> objectTypeToNodeDescription) {
+        String objectType;
+
+        if (node.getInsideLabelDescription() != null) {
+            objectType = extractObjectType(node.getInsideLabelDescription().getId());
+            idToObjectType.put(node.getId(), objectType);
+            objectTypeToNodeDescription.put(objectType, node);
+        }
+
+        node.getOutsideLabelDescriptions().stream()
+                .filter(Objects::nonNull)
+                .map(label -> Map.entry(node.getId(), extractObjectType(label.getId())))
+                .forEach(entry -> {
+                    idToObjectType.put(entry.getKey(), entry.getValue());
+                    objectTypeToNodeDescription.put(entry.getValue(), node);
+                });
+    }
+
+    private static void extractPaletteObjects(Palette palette, ArrayList<String> childObject) {
+        var creationToolSection = palette.getToolSections().stream()
+                .filter(toolSection -> toolSection.getLabel().equals("Creation Tools")).findFirst();
+
+        if (creationToolSection.isPresent()) {
+            for (var tool : creationToolSection.get().getTools()) {
+                childObject.add(tool.getLabel().replace(" ", ""));
+            }
+        }
+    }
+
+    private static String extractObjectType(String id) {
+        var result = "";
+        var strings = id.split("@");
+
+        for (var str : strings) {
+            if (str.contains("nodeDescriptions")) {
+                var nodeDescription = str.split("]");
+                for (var s : nodeDescription) {
+                    if(s.contains("nodeDescriptions")) {
+                        result = s.replace("nodeDescriptions[name=", "").replace("%20", "").replace("'", "").replace("Node", "").replace(" ","");
+                        break;
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static String extractLinkType(String id) {
+        var result = "";
+        var strings = id.split("@");
+
+        for (var str : strings) {
+            if (str.contains("edgeDescriptions")) {
+                result = str.replace("edgeDescriptions[name='", "").replace("%20", " ").replace("']_centerlabel", "");
+                break;
+            }
+        }
+
+        return result;
+    }
+}
