@@ -25,8 +25,8 @@ import java.util.Objects;
 import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O;
 
 @Service
-public class RoutingAgent implements Agent {
-    private final Logger logger = LoggerFactory.getLogger(RoutingAgent.class);
+public class OrchestratorAgent implements Agent {
+    private final Logger logger = LoggerFactory.getLogger(OrchestratorAgent.class);
 
     private final ChatLanguageModel model;
 
@@ -44,10 +44,10 @@ public class RoutingAgent implements Agent {
 
     private final ThreadPoolTaskExecutor taskExecutor;
 
-    public RoutingAgent(ReasonAgent reasonAgent, DeletionAgent deletionAgent,
-                        ObjectAgent objectAgent, ObjectEditionAgent objectEditionAgent,
-                        LinkAgent linkAgent, LinkEditionAgent linkEditionAgent,
-                        @Qualifier("threadPoolTaskExecutor") ThreadPoolTaskExecutor taskExecutor) {
+    public OrchestratorAgent(ReasonAgent reasonAgent, DeletionAgent deletionAgent,
+                             ObjectAgent objectAgent, ObjectEditionAgent objectEditionAgent,
+                             LinkAgent linkAgent, LinkEditionAgent linkEditionAgent,
+                             @Qualifier("threadPoolTaskExecutor") ThreadPoolTaskExecutor taskExecutor) {
         this.model = OpenAiChatModel.builder()
                 .apiKey(System.getenv("OPENAI_API_KEY"))
                 .modelName(GPT_4_O)
