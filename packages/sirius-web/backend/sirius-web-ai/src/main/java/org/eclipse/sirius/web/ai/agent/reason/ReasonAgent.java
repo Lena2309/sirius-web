@@ -28,7 +28,7 @@ public class ReasonAgent implements Agent {
     private final BuildContextTool buildContextTool;
 
     public ReasonAgent(BuildContextTool buildContextTool) {
-        this.model = AiModelsConfiguration.reasoningModel;
+        this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.REASONING_MODEL);
         this.buildContextTool = Objects.requireNonNull(buildContextTool);
     }
 
@@ -96,6 +96,7 @@ public class ReasonAgent implements Agent {
                 .toolSpecifications()
                 .build();
 
+        this.model.generate(previousMessages);
         ChatResponse rawResponse = this.model.chat(request);
         logger.info(rawResponse.toString());
 

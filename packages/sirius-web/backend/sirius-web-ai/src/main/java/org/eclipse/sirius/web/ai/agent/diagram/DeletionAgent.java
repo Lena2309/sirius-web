@@ -31,7 +31,7 @@ public class DeletionAgent implements DiagramAgent {
     private IInput input;
 
     public DeletionAgent(ObjectDeletionTools objectDeletionTools, LinkDeletionTools linkDeletionTools) {
-        this.model = AiModelsConfiguration.diagramModel;
+        this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.DIAGRAM_MODEL);
         this.toolClasses.add(objectDeletionTools);
         this.toolClasses.add(linkDeletionTools);
     }
