@@ -43,7 +43,7 @@ public class ObjectEditionTools implements AiTool {
     // ---------------------------------------------------------------------------------------------------------------
 
     @Tool("Retrieve a Map of an existing object properties structured as {property label, [property value options]} OR {property label, property current value}")
-    public Map<String, Map<String, Object>> getObjectProperties(String objectId) {
+    public Map<String, Map<String, Object>> getAvailableObjectProperties(String objectId) {
         var form = this.editionToolService.getFormForObject(objectId, true);
 
         return this.editionToolService.getProperties(form);
@@ -63,61 +63,18 @@ public class ObjectEditionTools implements AiTool {
             throw new UnsupportedOperationException("Object id is not in the correct format.");
         }
 
-        var labelId = this.aiToolService.getDiagram().getNodes().stream()
-                .filter(node -> Objects.equals(node.getId(), decompressedObjectId.toString()))
-                .map(node -> {
-                    List<OutsideLabel> outsideLabels = node.getOutsideLabels();
-                    if(!outsideLabels.isEmpty()) {
-                        return outsideLabels.get(0).id();
-                    }
-                    return node.getInsideLabel().getId();
-                })
-                .findFirst()
-                .orElse(null);
+        var node = this.aiToolService.findNode(decompressedObjectId.toString());
 
-        Objects.requireNonNull(labelId);
-        var diagramInput = new EditLabelInput(
-                UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
-                labelId,
-                newLabel
-        );
+        String labelId;
 
-        this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(diagramInput.editingContextId())
-                .ifPresent(processor -> processor.handle(diagramInput));
-
-        return "Success";
-    }
-
-    @Tool("Edit the label of an existing object's child.")
-    public String editChildLabel(String parentId, String childId, String newLabel) {
-        UUID decompressedParentId;
-        UUID decompressedChildId;
-
-        try {
-            decompressedParentId = UUIDConverter.decompress(parentId);
-            decompressedChildId = UUIDConverter.decompress(childId);
-        } catch (Exception e) {
-            throw new UnsupportedOperationException("Parent or Child id is not in the correct format.");
+        var outsideLabels = node.getOutsideLabels();
+        if(!outsideLabels.isEmpty()) {
+            labelId = outsideLabels.get(0).id();
+        } else {
+            labelId = node.getInsideLabel().getId();
         }
 
-        this.aiToolService.refreshDiagram();
-
-        var labelId = this.aiToolService.getDiagram().getNodes().stream()
-                .filter(node -> Objects.equals(node.getId(), decompressedParentId.toString()))
-                .map(node -> {
-                    String childLabelId = node.getChildNodes().stream()
-                            .filter(childNode -> Objects.equals(childNode.getId(), decompressedChildId.toString()))
-                            .map(childNode -> childNode.getOutsideLabels().get(0).id())
-                            .findFirst()
-                            .orElse(null);
-
-                    Objects.requireNonNull(childLabelId);
-                    return childLabelId;
-                }).findFirst()
-                .orElse(null);
-
+        Objects.requireNonNull(labelId);
         var diagramInput = new EditLabelInput(
                 UUID.randomUUID(),
                 this.aiToolService.getEditingContextId(),

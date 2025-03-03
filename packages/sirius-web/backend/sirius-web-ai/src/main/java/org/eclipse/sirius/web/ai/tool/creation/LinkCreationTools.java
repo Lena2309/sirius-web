@@ -49,7 +49,7 @@ public class LinkCreationTools implements AiTool {
     // ---------------------------------------------------------------------------------------------------------------
 
     @Tool("Retrieve a list of available operations for linking objects together, structured as {link name, operation id}. Links can be directed, if there are no available operations, try switching source and target. This does not create the link.")
-    public List<PairDiagramElement> getLinkOperations(@P("The object id that will serve as source.") String sourceObjectId, @P("The object id that will serve as target.") String targetObjectId) {
+    public List<PairDiagramElement> getAvailableLinkOperations(@P("The object id that will serve as source.") String sourceObjectId, @P("The object id that will serve as target.") String targetObjectId) {
         UUID decompressedSourceId;
         UUID decompressedTargetId;
 
