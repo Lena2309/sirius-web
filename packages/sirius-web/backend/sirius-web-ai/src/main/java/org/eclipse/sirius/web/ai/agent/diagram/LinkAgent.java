@@ -30,7 +30,7 @@ public class LinkAgent implements DiagramAgent {
     private IInput input;
 
     public LinkAgent(LinkCreationTools linkCreationTools) {
-        this.model = AiModelsConfiguration.diagramModel;
+        this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.DIAGRAM_MODEL);
         this.toolClasses.add(linkCreationTools);
     }
 

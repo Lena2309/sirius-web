@@ -46,7 +46,7 @@ public class OrchestratorAgent implements Agent {
                              ObjectAgent objectAgent, ObjectEditionAgent objectEditionAgent,
                              LinkAgent linkAgent, LinkEditionAgent linkEditionAgent,
                              @Qualifier("threadPoolTaskExecutor") ThreadPoolTaskExecutor taskExecutor) {
-        this.model = AiModelsConfiguration.orchestratorModel;
+        this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.ORCHESTRATION_MODEL);
         this.reasonAgent = Objects.requireNonNull(reasonAgent);
         this.deletionAgent = Objects.requireNonNull(deletionAgent);
         this.objectAgent = Objects.requireNonNull(objectAgent);
