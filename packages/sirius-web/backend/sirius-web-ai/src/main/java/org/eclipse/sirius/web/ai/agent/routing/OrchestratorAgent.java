@@ -32,26 +32,26 @@ public class OrchestratorAgent implements Agent {
 
     private final DeletionAgent deletionAgent;
 
-    private final ObjectAgent objectAgent;
+    private final ObjectCreationAgent objectCreationAgent;
 
     private final ObjectEditionAgent objectEditionAgent;
 
-    private final LinkAgent linkAgent;
+    private final LinkCreationAgent linkCreationAgent;
 
     private final LinkEditionAgent linkEditionAgent;
 
     private final ThreadPoolTaskExecutor taskExecutor;
 
     public OrchestratorAgent(ReasonAgent reasonAgent, DeletionAgent deletionAgent,
-                             ObjectAgent objectAgent, ObjectEditionAgent objectEditionAgent,
-                             LinkAgent linkAgent, LinkEditionAgent linkEditionAgent,
+                             ObjectCreationAgent objectCreationAgent, ObjectEditionAgent objectEditionAgent,
+                             LinkCreationAgent linkCreationAgent, LinkEditionAgent linkEditionAgent,
                              @Qualifier("threadPoolTaskExecutor") ThreadPoolTaskExecutor taskExecutor) {
         this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.ORCHESTRATION_MODEL);
         this.reasonAgent = Objects.requireNonNull(reasonAgent);
         this.deletionAgent = Objects.requireNonNull(deletionAgent);
-        this.objectAgent = Objects.requireNonNull(objectAgent);
+        this.objectCreationAgent = Objects.requireNonNull(objectCreationAgent);
         this.objectEditionAgent = Objects.requireNonNull(objectEditionAgent);
-        this.linkAgent = Objects.requireNonNull(linkAgent);
+        this.linkCreationAgent = Objects.requireNonNull(linkCreationAgent);
         this.linkEditionAgent = Objects.requireNonNull(linkEditionAgent);
         this.taskExecutor = Objects.requireNonNull(taskExecutor);
     }
@@ -61,7 +61,7 @@ public class OrchestratorAgent implements Agent {
             var previousMessages = new ArrayList<ChatMessage>();
             var specifications = new ArrayList<ToolSpecification>();
 
-            initializeSpecifications(List.of(this.objectAgent, this.deletionAgent, this.objectEditionAgent, this.linkAgent), aiRequestInput, List.of(), specifications);
+            initializeSpecifications(List.of(this.objectCreationAgent, this.deletionAgent, this.objectEditionAgent, this.linkCreationAgent), aiRequestInput, List.of(), specifications);
             this.reasonAgent.setInput(aiRequestInput);
 
             previousMessages.add(new SystemMessage("""
@@ -76,13 +76,13 @@ public class OrchestratorAgent implements Agent {
             previousMessages.add(new UserMessage(concepts));
 
             previousMessages.add(new UserMessage("First, create objects accordingly and/or modify already existing elements."));
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.objectAgent, this.deletionAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);
+            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.objectCreationAgent, this.deletionAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);
 
             previousMessages.add(new UserMessage("Now, link objects together accordingly."));
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.linkAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);
+            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.linkCreationAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);
 
             previousMessages.add(new UserMessage("If the previous tools (especially the linking tool) did not work, try something else. If it did work, do not call for tools."));
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.objectAgent, this.deletionAgent, this.linkAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);
+            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.objectCreationAgent, this.deletionAgent, this.linkCreationAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);
 
             previousMessages.add(new UserMessage("Now, continue with the edition of objects and links accordingly."));
             ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);

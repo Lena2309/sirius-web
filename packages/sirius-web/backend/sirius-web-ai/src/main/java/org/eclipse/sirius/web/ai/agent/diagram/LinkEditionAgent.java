@@ -47,7 +47,7 @@ public class LinkEditionAgent implements DiagramAgent {
     }
 
     @Tool("Edit a link's properties.")
-    public String editLink(@P("Explain what properties to modify with their new values.") String prompt, @P("The link id to edit.") String linkId) {
+    public String editLink(@P("Explain what properties to modify with their new values.") String prompt, @P("The link id to edit, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String linkId) {
         List<ChatMessage> previousMessages = new ArrayList<>();
         List<ToolSpecification> specifications = new ArrayList<>();
 

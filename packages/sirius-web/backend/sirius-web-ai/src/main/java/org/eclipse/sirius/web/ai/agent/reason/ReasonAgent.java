@@ -16,6 +16,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 
 @Service
@@ -96,8 +98,14 @@ public class ReasonAgent implements Agent {
                 .toolSpecifications()
                 .build();
 
-        this.model.generate(previousMessages);
+        Instant responseStart = Instant.now();
         ChatResponse rawResponse = this.model.chat(request);
+        Instant responseFinish = Instant.now();
+
+        long responseDuration = Duration.between(responseStart, responseFinish).toMillis();
+        logger.warn("Reason answered in {} ms", responseDuration);
+
+
         logger.info(rawResponse.toString());
 
         previousMessages.add(rawResponse.aiMessage());
