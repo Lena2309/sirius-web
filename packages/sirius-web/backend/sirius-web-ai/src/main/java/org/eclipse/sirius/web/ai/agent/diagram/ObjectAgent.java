@@ -30,7 +30,7 @@ public class ObjectAgent implements DiagramAgent {
     private IInput input;
 
     public ObjectAgent(ObjectCreationTools objectCreationTools) {
-        this.model = AiModelsConfiguration.diagramModel;
+        this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.DIAGRAM_MODEL);
         this.toolClasses.add(objectCreationTools);
     }
 
