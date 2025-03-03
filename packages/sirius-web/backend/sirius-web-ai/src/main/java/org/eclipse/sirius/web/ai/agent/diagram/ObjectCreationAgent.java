@@ -20,8 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-public class ObjectAgent implements DiagramAgent {
-    private static final Logger logger = LoggerFactory.getLogger(ObjectAgent.class);
+public class ObjectCreationAgent implements DiagramAgent {
+    private static final Logger logger = LoggerFactory.getLogger(ObjectCreationAgent.class);
 
     private final ChatLanguageModel model;
 
@@ -29,7 +29,7 @@ public class ObjectAgent implements DiagramAgent {
 
     private IInput input;
 
-    public ObjectAgent(ObjectCreationTools objectCreationTools) {
+    public ObjectCreationAgent(ObjectCreationTools objectCreationTools) {
         this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.DIAGRAM_MODEL);
         this.toolClasses.add(objectCreationTools);
     }

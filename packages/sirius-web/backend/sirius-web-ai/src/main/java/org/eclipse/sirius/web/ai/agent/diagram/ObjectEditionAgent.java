@@ -47,7 +47,7 @@ public class ObjectEditionAgent implements DiagramAgent {
     }
 
     @Tool("Edit an object's properties.")
-    public String editObject(@P("Explain what properties to modify with their new values.") String prompt, @P("The object id to edit.") String objectId) {
+    public String editObject(@P("Explain what properties to modify with their new values.") String prompt, @P("The object id to edit, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String objectId) {
         List<ChatMessage> previousMessages = new ArrayList<>();
         List<ToolSpecification> specifications = new ArrayList<>();
 

@@ -49,7 +49,7 @@ public class DeletionAgent implements DiagramAgent {
     }
 
     @Tool("Delete a diagram element, can be an object or a link.")
-    public void deleteElement(@P("Explain what to delete.") String prompt, @P("The element id to delete.") String elementId) {
+    public void deleteElement(@P("Explain what to delete.") String prompt, @P("The element id to delete, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String elementId) {
         List<ChatMessage> previousMessages = new ArrayList<>();
         List<ToolSpecification> specifications = new ArrayList<>();
 
