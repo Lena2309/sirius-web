@@ -7,11 +7,10 @@ import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.openai.OpenAiChatModel;
+import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
 import org.eclipse.sirius.web.ai.service.ToolCallService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.tool.creation.LinkCreationTools;
-import org.eclipse.sirius.web.ai.tool.getter.LinkGetterTools;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,9 +18,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-
-import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O;
 
 @Service
 public class LinkAgent implements DiagramAgent {
@@ -33,13 +29,8 @@ public class LinkAgent implements DiagramAgent {
 
     private IInput input;
 
-    public LinkAgent(LinkGetterTools linkGetterTools, LinkCreationTools linkCreationTools) {
-        this.model = OpenAiChatModel.builder()
-                .apiKey(System.getenv("OPENAI_API_KEY"))
-                .modelName(GPT_4_O)
-                .temperature(0.2)
-                .build();
-        this.toolClasses.add(linkGetterTools);
+    public LinkAgent(LinkCreationTools linkCreationTools) {
+        this.model = AiModelsConfiguration.diagramModel;
         this.toolClasses.add(linkCreationTools);
     }
 

@@ -8,8 +8,8 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
-import dev.langchain4j.model.openai.OpenAiChatModel;
 import org.eclipse.sirius.components.core.api.IInput;
+import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
 import org.eclipse.sirius.web.ai.agent.Agent;
 import org.eclipse.sirius.web.ai.tool.context.BuildContextTool;
 import org.slf4j.Logger;
@@ -17,8 +17,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-
-import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O;
 
 @Service
 public class ReasonAgent implements Agent {
@@ -30,11 +28,7 @@ public class ReasonAgent implements Agent {
     private final BuildContextTool buildContextTool;
 
     public ReasonAgent(BuildContextTool buildContextTool) {
-        this.model = OpenAiChatModel.builder()
-                .apiKey(System.getenv("OPENAI_API_KEY"))
-                .modelName(GPT_4_O)
-                .temperature(0.6)
-                .build();
+        this.model = AiModelsConfiguration.reasoningModel;
         this.buildContextTool = Objects.requireNonNull(buildContextTool);
     }
 

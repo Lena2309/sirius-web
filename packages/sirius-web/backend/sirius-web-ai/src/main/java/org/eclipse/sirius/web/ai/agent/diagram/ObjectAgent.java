@@ -7,24 +7,17 @@ import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.openai.OpenAiChatModel;
+import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
 import org.eclipse.sirius.web.ai.service.ToolCallService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.tool.creation.ObjectCreationTools;
-import org.eclipse.sirius.web.ai.tool.getter.ObjectGetterTools;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-
-import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O;
-import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O_MINI;
 
 @Service
 public class ObjectAgent implements DiagramAgent {
@@ -36,13 +29,8 @@ public class ObjectAgent implements DiagramAgent {
 
     private IInput input;
 
-    public ObjectAgent(ObjectGetterTools objectGetterTools, ObjectCreationTools objectCreationTools) {
-        this.model = OpenAiChatModel.builder()
-                .apiKey(System.getenv("OPENAI_API_KEY"))
-                .modelName(GPT_4_O)
-                .temperature(0.3)
-                .build();
-        this.toolClasses.add(objectGetterTools);
+    public ObjectAgent(ObjectCreationTools objectCreationTools) {
+        this.model = AiModelsConfiguration.diagramModel;
         this.toolClasses.add(objectCreationTools);
     }
 
