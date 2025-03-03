@@ -20,8 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Service
-public class LinkAgent implements DiagramAgent {
-    private static final Logger logger = LoggerFactory.getLogger(LinkAgent.class);
+public class LinkCreationAgent implements DiagramAgent {
+    private static final Logger logger = LoggerFactory.getLogger(LinkCreationAgent.class);
 
     private final ChatLanguageModel model;
 
@@ -29,7 +29,7 @@ public class LinkAgent implements DiagramAgent {
 
     private IInput input;
 
-    public LinkAgent(LinkCreationTools linkCreationTools) {
+    public LinkCreationAgent(LinkCreationTools linkCreationTools) {
         this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.DIAGRAM_MODEL);
         this.toolClasses.add(linkCreationTools);
     }
@@ -47,7 +47,7 @@ public class LinkAgent implements DiagramAgent {
     }
 
     @Tool("Links two objects together. Do not mention other properties here.")
-    public String linkObjects(@P("Explain what kind of links is preferred, if possible.") String prompt, @P("The source object id.") String sourceObjectId, @P("The target object id.") String targetObjectId) throws UnsupportedOperationException {
+    public String linkObjects(@P("Explain what kind of links is preferred, if possible.") String prompt, @P("The source object id, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String sourceObjectId, @P("The target object id, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String targetObjectId) throws UnsupportedOperationException {
         List<ChatMessage> previousMessages = new ArrayList<>();
         List<ToolSpecification> specifications = new ArrayList<>();
 
