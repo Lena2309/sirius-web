@@ -30,7 +30,7 @@ public class LinkEditionAgent implements DiagramAgent {
     private IInput input;
 
     public LinkEditionAgent(LinkEditionTools linkEditionTools) {
-        this.model = AiModelsConfiguration.editionModel;
+        this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.EDITION_MODEL);
         this.toolClasses.add(linkEditionTools);
     }
 

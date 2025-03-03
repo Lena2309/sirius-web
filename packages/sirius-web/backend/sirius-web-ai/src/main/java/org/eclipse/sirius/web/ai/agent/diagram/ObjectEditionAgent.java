@@ -30,7 +30,7 @@ public class ObjectEditionAgent implements DiagramAgent {
     private IInput input;
 
     public ObjectEditionAgent(ObjectEditionTools objectEditionTools) {
-        this.model = AiModelsConfiguration.editionModel;
+        this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.EDITION_MODEL);
         this.toolClasses.add(objectEditionTools);
     }
 
