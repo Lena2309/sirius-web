@@ -5,7 +5,7 @@ import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.openai.OpenAiChatModel;
+import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
 import org.eclipse.sirius.web.ai.agent.Agent;
 import org.eclipse.sirius.web.ai.agent.diagram.*;
 import org.eclipse.sirius.web.ai.agent.reason.ReasonAgent;
@@ -21,8 +21,6 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
-
-import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O;
 
 @Service
 public class OrchestratorAgent implements Agent {
@@ -48,11 +46,7 @@ public class OrchestratorAgent implements Agent {
                              ObjectAgent objectAgent, ObjectEditionAgent objectEditionAgent,
                              LinkAgent linkAgent, LinkEditionAgent linkEditionAgent,
                              @Qualifier("threadPoolTaskExecutor") ThreadPoolTaskExecutor taskExecutor) {
-        this.model = OpenAiChatModel.builder()
-                .apiKey(System.getenv("OPENAI_API_KEY"))
-                .modelName(GPT_4_O)
-                .temperature(0.4)
-                .build();
+        this.model = AiModelsConfiguration.orchestratorModel;
         this.reasonAgent = Objects.requireNonNull(reasonAgent);
         this.deletionAgent = Objects.requireNonNull(deletionAgent);
         this.objectAgent = Objects.requireNonNull(objectAgent);
