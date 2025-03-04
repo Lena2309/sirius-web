@@ -76,6 +76,7 @@ public class BuildContextTool implements AiTool {
     private List<JsonObject> buildObjectContext(DiagramDescription diagramDescription) {
         var jsonRootObjects = new ArrayList<JsonObject>();
 
+        var childrenMapping = new HashMap<String, List<String>>();
         var objectTypeToNodeDescription = new HashMap<String, NodeDescription>();
         var idToObjectType = new HashMap<String, String>();
         var rootObjects = new ArrayList<String>();
@@ -108,32 +109,64 @@ public class BuildContextTool implements AiTool {
                 .orElse(List.of());
 
         rootObjects.forEach(object -> {
-            jsonRootObjects.add(new JsonObject(object, retrieveRecursiveChildren(object,objectTypeToNodeDescription,idToObjectType,pairList)));
+            jsonRootObjects.add(new JsonObject(object, writeRecursiveChildren(object, childrenMapping, objectTypeToNodeDescription, idToObjectType, pairList, 0)));
         });
 
         return jsonRootObjects;
     }
 
-    private static List<JsonObject> retrieveRecursiveChildren(String parent, Map<String, NodeDescription> objectTypeToNodeDescription, Map<String, String> idToObjectType, List<Pair> pairs) {
+    private static List<JsonObject> writeRecursiveChildren(String parent, Map<String, List<String>> childrenMapping, Map<String, NodeDescription> objectTypeToNodeDescription, Map<String, String> idToObjectType, List<Pair> pairs, int depth) {
         var children = new ArrayList<JsonObject>();
 
-        // retrieve children from the node description
-        if (objectTypeToNodeDescription.containsKey(parent)) {
-            if (!objectTypeToNodeDescription.get(parent).getReusedChildNodeDescriptionIds().isEmpty()) {
-                for (var childId : objectTypeToNodeDescription.get(parent).getReusedChildNodeDescriptionIds()) {
-                    var childType = idToObjectType.get(childId);
-                    children.add(new JsonObject(childType, retrieveRecursiveChildren(childType, objectTypeToNodeDescription, idToObjectType, pairs)));
+        // TODO: vraiment pas idéal et peut être source d'hallucinations plus tard
+        for (var objectType : objectTypeToNodeDescription.keySet()) {
+            if (objectType.contains(parent)) {
+                if (childrenMapping.containsKey(objectType)) {
+                    for (var child : childrenMapping.get(objectType)) {
+                        if (childrenMapping.containsKey(child)) {
+                            children.add(new JsonObject(child, writeRecursiveChildren(child, childrenMapping, objectTypeToNodeDescription, idToObjectType, pairs, depth + 1)));
+                        } else {
+                            children.add(new JsonObject(child, retrieveRecursiveChildren(child, childrenMapping, objectTypeToNodeDescription, idToObjectType, pairs, depth + 1)));
+                        }
+                    }
+                } else {
+                    children.addAll(retrieveRecursiveChildren(objectType, childrenMapping, objectTypeToNodeDescription, idToObjectType, pairs, depth));
+                }
+                break;
+            }
+        }
+
+        if (depth < 5) {
+            // inherit children of supertypes
+            for (var pair : pairs) {
+                if (pair.objectType.equals(parent)) {
+                    for (var supertype : pair.supertypes) {
+                        children.addAll(writeRecursiveChildren(supertype, childrenMapping, objectTypeToNodeDescription, idToObjectType, pairs, depth + 1));
+                    }
+                    break;
                 }
             }
         }
 
-        // inherit children of supertypes
-        for (var pair : pairs) {
-            if (pair.objectType.equals(parent)) {
-                for (var supertype : pair.supertypes) {
-                    children.addAll(retrieveRecursiveChildren(supertype, objectTypeToNodeDescription, idToObjectType, pairs));
+        return children;
+    }
+
+    private static List<JsonObject> retrieveRecursiveChildren(String objectType, Map<String, List<String>> childrenMapping, Map<String, NodeDescription> objectTypeToNodeDescription, Map<String, String> idToObjectType, List<Pair> pairs, int depth) {
+        var children = new ArrayList<JsonObject>();
+
+        if (objectTypeToNodeDescription.containsKey(objectType)) {
+            var reusedChildren = objectTypeToNodeDescription.get(objectType).getReusedChildNodeDescriptionIds();
+
+            if (!reusedChildren.isEmpty()) {
+                var childrenTypes = new ArrayList<String>();
+                for (var childId : reusedChildren) {
+                    var childType = idToObjectType.get(childId);
+                    if ((childType != null) && (depth < 5)) {
+                        childrenTypes.add(childType);
+                        children.add(new JsonObject(childType, writeRecursiveChildren(childType, childrenMapping, objectTypeToNodeDescription, idToObjectType, pairs, depth + 1)));
+                    }
                 }
-                break;
+                childrenMapping.put(objectType, childrenTypes);
             }
         }
 
@@ -148,7 +181,9 @@ public class BuildContextTool implements AiTool {
         var links = new ArrayList<JsonLink>(List.of());
 
         for (var link : diagramDescription.getEdgeDescriptions()) {
-            links.add(new JsonLink(extractLinkType(link.getCenterLabelDescription().getId())));
+            if (link.getCenterLabelDescription() != null) {
+                links.add(new JsonLink(extractLinkType(link.getCenterLabelDescription().getId())));
+            }
         }
 
         return links;
@@ -177,12 +212,12 @@ public class BuildContextTool implements AiTool {
     }
 
     private static void extractPaletteObjects(Palette palette, ArrayList<String> childObject) {
-        var creationToolSection = palette.getToolSections().stream()
-                .filter(toolSection -> toolSection.getLabel().equals("Creation Tools")).findFirst();
+        var toolSections = palette.getToolSections().stream()
+                .filter(toolSection -> !toolSection.getLabel().equals("Show/Hide")).toList();
 
-        if (creationToolSection.isPresent()) {
-            for (var tool : creationToolSection.get().getTools()) {
-                childObject.add(tool.getLabel().replace(" ", ""));
+        for (var toolSection : toolSections) {
+            for (var tool : toolSection.getTools()) {
+                childObject.add(tool.getLabel().replace(" ", "").replace("New", ""));
             }
         }
     }

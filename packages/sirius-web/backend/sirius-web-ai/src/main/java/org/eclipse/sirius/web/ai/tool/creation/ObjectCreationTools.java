@@ -87,7 +87,7 @@ public class ObjectCreationTools implements AiTool {
                 if (invokePayload instanceof GetPaletteSuccessPayload successPayload) {
                     successPayload.palette().paletteEntries().stream()
                             .filter(ToolSection.class::isInstance)
-                            .filter(toolSection -> ((ToolSection) toolSection).label().contains("Creation"))
+                            .filter(toolSection -> !((ToolSection) toolSection).label().equals("Show/Hide"))
                             .forEach(toolSection -> {
                                 for (var tool : ((ToolSection) toolSection).tools()) {
                                     creationTools.add(new PairDiagramElement(tool.label(), UUIDConverter.compress(tool.id())));
