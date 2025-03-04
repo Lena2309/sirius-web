@@ -18,7 +18,7 @@ public class AiModelsConfiguration {
     public static ChatLanguageModel buildLanguageModel(ModelType type) {
         return switch (type) {
             case REASONING_MODEL -> MistralAiChatModel.builder()
-                    .apiKey("eMEga7bjX71rW0jjwJd7wXmBGXH6advV")
+                    .apiKey(System.getenv("MISTRAL_API_KEY"))
                     .modelName(MISTRAL_LARGE_LATEST)
                     .logRequests(true)
                     .logResponses(true)
