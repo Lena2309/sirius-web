@@ -66,14 +66,16 @@ public class OrchestratorAgent implements Agent {
 
             previousMessages.add(new SystemMessage("""
                     You are a routing agent for Diagram Generation.
-                    From the user prompt, call the correct tools to create or edit a diagram.
+                    From the user prompt and the list of concepts computed from it, call the correct tools to create or edit a diagram.
                     You are encouraged to call multiple tools at the same time, since they are parallelized.
                     Start with the creation and deletion of objects. Once done, continue with the linking and edition of objects.
                     Do not hallucinate.
                     """));
 
+            previousMessages.add(new UserMessage(aiRequestInput.prompt()));
+
             var concepts = this.reasonAgent.think(aiRequestInput.prompt());
-            previousMessages.add(new UserMessage(concepts));
+            previousMessages.add(new UserMessage("The listed concepts computed with the original user prompt: "+concepts));
 
             previousMessages.add(new UserMessage("First, create objects accordingly and/or modify already existing elements."));
             ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.objectCreationAgent, this.deletionAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);

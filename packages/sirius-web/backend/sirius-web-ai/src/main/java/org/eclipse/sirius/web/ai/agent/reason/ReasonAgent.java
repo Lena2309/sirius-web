@@ -44,45 +44,6 @@ public class ReasonAgent implements Agent {
         logger.info(context);
 
         List<ChatMessage> previousMessages = new ArrayList<>();
-/*
-        previousMessages.add(new SystemMessage("""
-             You are an agent for Diagram Generation.
-             From the user's prompt and the domain context, list all the concepts/objects that are relevant and appropriate.
-             Do not forget links between the objects. Do not forget to set special values for properties, if necessary.
-             Mention if the concept must be created, deleted or edited. Unless knowing they already exist, create the objects and links.
-             Your output should be concise and without ambiguity, it will be used by another LLM in an ulterior process.
-             Here is an example:
-             - Create Composite Processor (Composite Processor 1)
-                - Create child Processor (Processor 1)
-                    - Edit Object Property: Status: inactive
-             - Create Data Source (Data Source 1)
-                - Link To Processor 1
-
-             Example:
-                Liens disponibles:
-                    - Brique to Brique
-                    - Toiture to Mur
-                    - Fenetre to Mur
-                    - Fenetre to Toiture
-                    - Porte to Mur
-
-                Objects disponibles
-                    - Mur
-                        - Brique
-                    - Toiture
-                    - Porte
-                    - Fenetre
-                    - Pelouse
-                    - Piscine
-
-                Prompt: "Fabrique une maison"
-                Réponse: "
-                Une maison a 4 murs, chacun contient 10 briques liées entre elles. Une maison a une toiture liées aux murs.
-                Une maison a 1 porte liée à l'un des murs, elle devient une porte d'entrée.
-                Elle a 2 fenêtres par mur et une fenêtre sur la toiture.
-               "
-             """));
-*/
         previousMessages.add(new SystemMessage("""
              You are a reasoning agent for diagram driven data Generation.
              Your purpose is to transform the user needs into a prompt that relies on the provided domain concepts.
@@ -95,7 +56,6 @@ public class ReasonAgent implements Agent {
 
         ChatRequest request = new ChatRequest.Builder()
                 .messages(previousMessages)
-                .toolSpecifications()
                 .build();
 
         Instant responseStart = Instant.now();
