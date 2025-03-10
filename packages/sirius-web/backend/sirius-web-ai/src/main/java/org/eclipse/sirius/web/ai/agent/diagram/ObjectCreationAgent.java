@@ -2,12 +2,12 @@ package org.eclipse.sirius.web.ai.agent.diagram;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
+import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.ToolCallService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.tool.creation.ObjectCreationTools;
@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.DIAGRAM_MODEL;
 
 @Service
 public class ObjectCreationAgent implements DiagramAgent {
@@ -30,7 +32,7 @@ public class ObjectCreationAgent implements DiagramAgent {
     private IInput input;
 
     public ObjectCreationAgent(ObjectCreationTools objectCreationTools) {
-        this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.DIAGRAM_MODEL);
+        this.model = AiModelsConfiguration.buildLanguageModel(DIAGRAM_MODEL);
         this.toolClasses.add(objectCreationTools);
     }
 
@@ -46,12 +48,11 @@ public class ObjectCreationAgent implements DiagramAgent {
         }
     }
 
-    @Tool("Creates one root object and its potential children. Does not edit them.")
-    public String createObject(@P("Explain what object to create and the children it may contain. Do not mention links and properties here.") String prompt) {
-        List<ChatMessage> previousMessages = new ArrayList<>();
-        List<ToolSpecification> specifications = new ArrayList<>();
-
-        initializeSpecifications(List.of(), this.input, this.toolClasses, specifications);
+    @Tool("Creates one root object and its potential children. Does not edit them outside of naming them.")
+    public String createObject(@P("Explain what object to create and the children it may contain, mention names if necessary. Do not mention links and properties here.") String prompt) {
+        var rateLimiter = AiModelsConfiguration.getRateLimiter(this.model);
+        var previousMessages = new ArrayList<ChatMessage>();
+        var specifications = new ArrayList<>(initializeSpecifications(List.of(), this.input, this.toolClasses));
         this.setToolsInput();
 
         previousMessages.add(new SystemMessage("""
@@ -62,18 +63,17 @@ public class ObjectCreationAgent implements DiagramAgent {
         ));
         previousMessages.add(new UserMessage(prompt));
 
-        ToolCallService.computeToolCalls(logger, this.model, previousMessages, this.toolClasses, specifications);
-        previousMessages.add(new UserMessage("Now, summarize the important information you created, structured as \"ObjectType created with id ObjectId\""));
+        var results = new ArrayList<AgentResult>();
+        ToolCallService.computeToolCalls(logger, this.model, previousMessages, this.toolClasses, specifications, results, rateLimiter);
 
-        return model.generate(previousMessages).content().text();
+        return results.toString();
     }
 
-    @Tool("Creates one or multiple children in an object. Does not edit them. Useless if the parent does not already exists.")
-    public String createChild(@P("Explain what child to create within an already existing object and the children it may contain. Do not mention links and properties here.") String prompt, @P("The parent id.") String parentId) {
-        List<ChatMessage> previousMessages = new ArrayList<>();
-        List<ToolSpecification> specifications = new ArrayList<>();
-
-        initializeSpecifications(List.of(), this.input, this.toolClasses, specifications);
+    @Tool("Creates one or multiple children in an object. Does not edit them outside of naming them. Useless if the parent does not already exists.")
+    public String createChild(@P("Explain what child to create within an already existing object and the children it may contain, mention names if necessary. Do not mention links and properties here.") String prompt, @P("The parent id.") String parentId) {
+        var rateLimiter = AiModelsConfiguration.getRateLimiter(this.model);
+        var previousMessages = new ArrayList<ChatMessage>();
+        var specifications = new ArrayList<>(initializeSpecifications(List.of(), this.input, this.toolClasses));
         this.setToolsInput();
 
         previousMessages.add(new SystemMessage("""
@@ -84,9 +84,9 @@ public class ObjectCreationAgent implements DiagramAgent {
         ));
         previousMessages.add(new UserMessage(prompt));
 
-        ToolCallService.computeToolCalls(logger, this.model, previousMessages, this.toolClasses, specifications);
-        previousMessages.add(new UserMessage("Now, summarize the object you created, you must differentiate root objects, structured as \"ObjectType created with id ObjectId\", from children, structured as \"ChildrenType child of ParentType created with id ChildId\""));
+        var results = new ArrayList<AgentResult>();
+        ToolCallService.computeToolCalls(logger, this.model, previousMessages, this.toolClasses, specifications, results, rateLimiter);
 
-        return model.generate(previousMessages).content().text();
+        return results.toString();
     }
 }

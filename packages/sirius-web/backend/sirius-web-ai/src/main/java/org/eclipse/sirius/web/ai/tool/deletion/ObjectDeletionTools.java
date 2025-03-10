@@ -2,6 +2,9 @@ package org.eclipse.sirius.web.ai.tool.deletion;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
+import org.eclipse.sirius.components.core.api.IPayload;
+import org.eclipse.sirius.components.core.api.SuccessPayload;
+import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.AiToolService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.util.UUIDConverter;
@@ -12,10 +15,12 @@ import org.eclipse.sirius.components.collaborative.editingcontext.EditingContext
 import org.eclipse.sirius.components.core.api.IInput;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class ObjectDeletionTools implements AiTool {
@@ -39,7 +44,7 @@ public class ObjectDeletionTools implements AiTool {
     // ---------------------------------------------------------------------------------------------------------------
 
     @Tool("Delete the object from the diagram.")
-    public String deleteObject(@P("The id of the object to delete.") String objectId) {
+    public AgentResult deleteObject(@P("The id of the object to delete.") String objectId) {
         UUID decompressedObjectId;
 
         try {
@@ -57,16 +62,19 @@ public class ObjectDeletionTools implements AiTool {
                 DeletionPolicy.SEMANTIC
         );
 
-        var node = this.aiToolService.findNode(UUIDConverter.decompress(objectId).toString());
-
+        var payload = new AtomicReference<Mono<IPayload>>();
         this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(deleteInput.editingContextId())
-                .ifPresent(processor -> processor.handle(deleteInput));
+                .ifPresent(processor -> payload.set(processor.handle(deleteInput)));
 
-        this.aiToolService.refreshDiagram();
-        if (this.aiToolService.getDiagram().getNodes().contains(node)) {
-            return "Failure";
-        } else {
-            return "Success";
-        }
+        var output = new AtomicReference<String>();
+        payload.get().subscribe(invokePayload -> {
+            if (invokePayload instanceof SuccessPayload) {
+                output.set("Object successfully deleted.");
+            } else {
+                output.set("Object could not be deleted.");
+            }
+        });
+
+        return new AgentResult("deleteObject", output.get());
     }
 }

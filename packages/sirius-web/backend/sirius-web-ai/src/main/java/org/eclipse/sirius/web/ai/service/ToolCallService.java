@@ -6,9 +6,10 @@ import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
-import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import org.eclipse.sirius.web.ai.agent.Agent;
+import org.eclipse.sirius.web.ai.configuration.BlockingRateLimiter;
+import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.slf4j.Logger;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -18,6 +19,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -26,34 +28,19 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class ToolCallService {
-    static StringBuilder agentsResults = new StringBuilder();
+    //private static volatile List<ToolExecutionResultMessage> agentsOutputs = new ArrayList<>();
 
-    public static void computeToolCalls(Logger logger, ChatLanguageModel model, List<ChatMessage> previousMessages, List<AiTool> aiTools, List<ToolSpecification> specifications) {
-        var response = model.generate(previousMessages, specifications);
+    // ---------------------------------------------------------------------------------------------------------------
+    //                                                    ORCHESTRATOR
+    // ---------------------------------------------------------------------------------------------------------------
 
-        while (response.content().hasToolExecutionRequests()) {
-            previousMessages.add(response.content());
-            logger.info(response.content().toolExecutionRequests().toString());
-
-            for (var toolExecutionRequest : response.content().toolExecutionRequests()) {
-                var toolExecutionResultMessage = parseAndExecuteToolExecutionRequests(logger, aiTools, toolExecutionRequest);
-
-                logger.info("tool execution result : {}", toolExecutionResultMessage.text());
-
-                previousMessages.add(toolExecutionResultMessage);
-            }
-
-            Instant responseStart = Instant.now();
-            response = model.generate(previousMessages, specifications);
-            Instant responseFinish = Instant.now();
-
-            long responseDuration = Duration.between(responseStart, responseFinish).toMillis();
-            logger.warn("Assistant answered in {} ms", responseDuration);
-        }
-    }
-
-    public static void computeToolCalls(Logger logger, ChatLanguageModel model, List<ChatMessage> previousMessages, List<AiTool> aiTools, List<ToolSpecification > specifications, List<Agent> agents, ThreadPoolTaskExecutor taskExecutor) {
+    public static void computeToolCalls(Logger logger, ChatLanguageModel model, List<ChatMessage> previousMessages, List<ToolSpecification > specifications, List<Agent> agents, ThreadPoolTaskExecutor taskExecutor, BlockingRateLimiter rateLimiter) {
         var latch = new AtomicReference<>(new CountDownLatch(0));
+        var agentsOutputs = new ArrayList<ToolExecutionResultMessage>();
+
+        //logger.info("Rate limit is " + rateLimiter.getPermits());
+        rateLimiter.acquire(logger);
+        //noinspection removal
         var response = model.generate(previousMessages, specifications);
 
         var requestAttributes = RequestContextHolder.getRequestAttributes();
@@ -65,18 +52,8 @@ public class ToolCallService {
             logger.info(response.content().toolExecutionRequests().toString());
 
             for (var toolExecutionRequest : response.content().toolExecutionRequests()) {
-                var toolExecutionResultMessage = parseAndExecuteToolExecutionRequests(logger, aiTools, toolExecutionRequest, agents, taskExecutor, latch);
-                logger.info("tool execution result : {}", toolExecutionResultMessage.text());
-
-                previousMessages.add(toolExecutionResultMessage);
+                tryToolAgentExecution(logger, agents, toolExecutionRequest, agentsOutputs, taskExecutor, latch);
             }
-
-            Instant responseStart = Instant.now();
-            response = model.generate(previousMessages, specifications);
-            Instant responseFinish = Instant.now();
-
-            long responseDuration = Duration.between(responseStart, responseFinish).toMillis();
-            logger.warn("Assistant answered in {} ms", responseDuration);
 
             try {
                 latch.get().await();
@@ -84,29 +61,99 @@ public class ToolCallService {
                 Thread.currentThread().interrupt();
                 logger.error("Main thread interrupted while waiting for workers", e);
             }
+
+            if (!agentsOutputs.isEmpty()) {
+                logger.info(agentsOutputs.toString());
+                previousMessages.addAll(agentsOutputs);
+                agentsOutputs.clear();
+            }
+
+            //logger.info("Rate limit is " + rateLimiter.getPermits());
+            rateLimiter.acquire(logger);
+
+            Instant responseStart = Instant.now();
+            //noinspection removal
+            response = model.generate(previousMessages, specifications);
+            Instant responseFinish = Instant.now();
+
+            long responseDuration = Duration.between(responseStart, responseFinish).toMillis();
+            logger.info("Assistant answered in {} ms", responseDuration);
         }
+    }
 
-        if (!agentsResults.isEmpty()) {
-            logger.info(agentsResults.toString());
-            previousMessages.add(new UserMessage(agentsResults.toString()));
-            agentsResults.setLength(0);
+    private static void tryToolAgentExecution(Logger logger, List<Agent> agents, ToolExecutionRequest toolExecutionRequest, List<ToolExecutionResultMessage> agentsOutputs, ThreadPoolTaskExecutor taskExecutor, AtomicReference<CountDownLatch> latch) {
+        for (var agent : agents) {
+            latch.set(new CountDownLatch((int) (latch.get().getCount()+1)));
+            taskExecutor.execute(() -> {
+                try {
+                    var methodInvoker = instanciateMethodInvoker(agent, toolExecutionRequest);
+
+                    methodInvoker.prepare();
+
+                    var result = methodInvoker.invoke();
+
+                    logger.info("Agent Result : {}", result);
+                    Objects.requireNonNull(result);
+
+                    synchronized(agentsOutputs) {
+                        agentsOutputs.add(ToolExecutionResultMessage.from(toolExecutionRequest, result.toString()));
+                    }
+                } catch (Exception e) {
+                    if (e.getCause() instanceof UnsupportedOperationException unsupported) {
+                        agentsOutputs.add(ToolExecutionResultMessage.from(toolExecutionRequest, unsupported.getMessage()));
+                    } else if (e instanceof NoSuchMethodException ignored) {
+                    } else {
+                        logger.error(e.getMessage(), e);
+                    }
+                } finally {
+                    latch.get().countDown();
+                }
+            });
         }
     }
 
-    private static ToolExecutionResultMessage parseAndExecuteToolExecutionRequests(Logger logger, List<AiTool> aiTools, ToolExecutionRequest toolExecutionRequest) {
-            return tryAiToolExecution(logger, aiTools, toolExecutionRequest);
+
+    // ---------------------------------------------------------------------------------------------------------------
+    //                                                      TOOL AGENTS
+    // ---------------------------------------------------------------------------------------------------------------
+
+    public static void computeToolCalls(Logger logger, ChatLanguageModel model, List<ChatMessage> previousMessages, List<AiTool> aiTools, List<ToolSpecification> specifications, List<AgentResult> toolResults, BlockingRateLimiter rateLimiter) {
+        //logger.info("Rate limit is " + rateLimiter.getPermits());
+        rateLimiter.acquire(logger);
+        //noinspection removal
+        var response = model.generate(previousMessages, specifications);
+
+        while (response.content().hasToolExecutionRequests()) {
+            previousMessages.add(response.content());
+            logger.info(response.content().toolExecutionRequests().toString());
+
+            for (var toolExecutionRequest : response.content().toolExecutionRequests()) {
+                var toolExecutionResultMessage = tryAiToolExecution(logger, aiTools, toolExecutionRequest, toolResults);
+
+                logger.info("tool execution result : {}", toolExecutionResultMessage.text());
+
+                previousMessages.add(toolExecutionResultMessage);
+            }
+
+            //logger.info("Rate limit is " + rateLimiter.getPermits());
+            rateLimiter.acquire(logger);
+
+            Instant responseStart = Instant.now();
+            //noinspection removal
+            response = model.generate(previousMessages, specifications);
+            Instant responseFinish = Instant.now();
+
+            long responseDuration = Duration.between(responseStart, responseFinish).toMillis();
+            logger.info("Assistant answered in {} ms", responseDuration);
+        }
     }
 
-    private static ToolExecutionResultMessage parseAndExecuteToolExecutionRequests(Logger logger, List<AiTool> aiTools, ToolExecutionRequest toolExecutionRequest, List<Agent> agents, ThreadPoolTaskExecutor taskExecutor, AtomicReference<CountDownLatch> latch) {
-        var toolExecutionResultMessage = tryAiToolExecution(logger, aiTools, toolExecutionRequest);
-        if (toolExecutionResultMessage != null) return toolExecutionResultMessage;
+    // ---------------------------------------------------------------------------------------------------------------
+    //                                                  METHOD INVOKER
+    // ---------------------------------------------------------------------------------------------------------------
 
-        tryToolAgentExecution(logger, agents, toolExecutionRequest, taskExecutor, latch);
-
-        return ToolExecutionResultMessage.from(toolExecutionRequest, "Agent called successfully.");
-    }
-
-    private static ToolExecutionResultMessage tryAiToolExecution(Logger logger, List<AiTool> aiTools, ToolExecutionRequest toolExecutionRequest) {
+    private static ToolExecutionResultMessage tryAiToolExecution(Logger logger, List<AiTool> aiTools, ToolExecutionRequest toolExecutionRequest, List<AgentResult> toolResult) {
+        var toolExecutionResult = ToolExecutionResultMessage.from(toolExecutionRequest, "A problem occurred. Try again.");
         for (AiTool aiTool : aiTools) {
             try {
                 var methodInvoker = instanciateMethodInvoker(aiTool, toolExecutionRequest);
@@ -116,42 +163,21 @@ public class ToolCallService {
                 var result = methodInvoker.invoke();
 
                 Objects.requireNonNull(result);
+                if (result instanceof AgentResult agentResult) {
+                    toolResult.add(agentResult);
+                }
+
                 return ToolExecutionResultMessage.from(toolExecutionRequest, result.toString());
-            } catch (NoSuchMethodException ignored) {
             } catch (Exception e) {
                 if (e.getCause() instanceof UnsupportedOperationException unsupported) {
-                    ToolExecutionResultMessage.from(toolExecutionRequest, unsupported.getMessage());
+                    return ToolExecutionResultMessage.from(toolExecutionRequest, unsupported.getMessage());
+                } else if (e instanceof NoSuchMethodException ignored) {
                 } else {
-                    logger.warn(e.toString());
+                    logger.error(e.toString());
                 }
             }
         }
-        return null;
-    }
-
-    private static void tryToolAgentExecution(Logger logger, List<Agent> agents, ToolExecutionRequest toolExecutionRequest, ThreadPoolTaskExecutor taskExecutor, AtomicReference<CountDownLatch> latch) {
-        for (var agent : agents) {
-            taskExecutor.execute(() -> {
-                latch.set(new CountDownLatch((int) (latch.get().getCount()+1)));
-                try {
-                    var methodInvoker = instanciateMethodInvoker(agent, toolExecutionRequest);
-
-                    methodInvoker.prepare();
-
-                    var result = methodInvoker.invoke();
-
-                    Objects.requireNonNull(result);
-                    logger.info(result.toString());
-                    agentsResults.append("Tool ").append(toolExecutionRequest.name()).append(" answered with: ").append(result);
-                } catch (Exception ignored) {
-                    if (ignored.getCause() instanceof UnsupportedOperationException unsupported) {
-                        agentsResults.append("Tool ").append(toolExecutionRequest.name()).append(" answered with: ").append(unsupported.getMessage());
-                    }
-                } finally {
-                    latch.get().countDown();
-                }
-            });
-        }
+        return toolExecutionResult;
     }
 
     private static MethodInvoker instanciateMethodInvoker(Object tool, ToolExecutionRequest toolExecutionRequest) throws Exception {
@@ -168,6 +194,10 @@ public class ToolCallService {
 
         return methodInvoker;
     }
+
+    // ---------------------------------------------------------------------------------------------------------------
+    //                                                  PARSERS
+    // ---------------------------------------------------------------------------------------------------------------
 
     private static Map<String, Object> parseJsonToMap(String jsonString) throws JsonProcessingException {
         var objectMapper = new ObjectMapper();

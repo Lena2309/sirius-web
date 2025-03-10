@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.ORCHESTRATION_MODEL;
+
 @Service
 public class OrchestratorAgent implements Agent {
     private final Logger logger = LoggerFactory.getLogger(OrchestratorAgent.class);
@@ -46,7 +48,7 @@ public class OrchestratorAgent implements Agent {
                              ObjectCreationAgent objectCreationAgent, ObjectEditionAgent objectEditionAgent,
                              LinkCreationAgent linkCreationAgent, LinkEditionAgent linkEditionAgent,
                              @Qualifier("threadPoolTaskExecutor") ThreadPoolTaskExecutor taskExecutor) {
-        this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.ORCHESTRATION_MODEL);
+        this.model = AiModelsConfiguration.buildLanguageModel(ORCHESTRATION_MODEL);
         this.reasonAgent = Objects.requireNonNull(reasonAgent);
         this.deletionAgent = Objects.requireNonNull(deletionAgent);
         this.objectCreationAgent = Objects.requireNonNull(objectCreationAgent);
@@ -58,18 +60,23 @@ public class OrchestratorAgent implements Agent {
 
     public void compute(IInput input) {
         if (input instanceof AiRequestInput aiRequestInput) {
+            var rateLimiter = AiModelsConfiguration.getRateLimiter(this.model);
             var previousMessages = new ArrayList<ChatMessage>();
-            var specifications = new ArrayList<ToolSpecification>();
-
-            initializeSpecifications(List.of(this.objectCreationAgent, this.deletionAgent, this.objectEditionAgent, this.linkCreationAgent), aiRequestInput, List.of(), specifications);
+            var specifications = new ArrayList<>(initializeSpecifications(List.of(this.objectCreationAgent, this.deletionAgent, this.objectEditionAgent, this.linkCreationAgent), aiRequestInput, List.of()));
             this.reasonAgent.setInput(aiRequestInput);
 
             previousMessages.add(new SystemMessage("""
-                    You are a routing agent for Diagram Generation.
+                    You are an orchestrating agent for Diagram Generation.
                     From the user prompt and the list of concepts computed from it, call the correct tools to create or edit a diagram.
                     You are encouraged to call multiple tools at the same time, since they are parallelized.
                     Start with the creation and deletion of objects. Once done, continue with the linking and edition of objects.
                     Do not hallucinate.
+                    
+                    Call the tools in batches:
+                        1. Object Creations and Deletions
+                        2. Link Creations and Deletions
+                        3. Object and Link Editions
+                    The batches must be separate.
                     """));
 
             previousMessages.add(new UserMessage(aiRequestInput.prompt()));
@@ -77,17 +84,24 @@ public class OrchestratorAgent implements Agent {
             var concepts = this.reasonAgent.think(aiRequestInput.prompt());
             previousMessages.add(new UserMessage("The listed concepts computed with the original user prompt: "+concepts));
 
+            ToolCallService.computeToolCalls(logger, this.model, previousMessages, specifications, List.of( this.deletionAgent, this.objectCreationAgent, this.linkCreationAgent, this.objectEditionAgent, this.linkEditionAgent), this.taskExecutor, rateLimiter);
+
+            /*
             previousMessages.add(new UserMessage("First, create objects accordingly and/or modify already existing elements."));
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.objectCreationAgent, this.deletionAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);
+            ToolCallService.computeToolCalls(logger, this.model, previousMessages, specifications, List.of(this.objectCreationAgent, this.deletionAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor, rateLimiter);
 
             previousMessages.add(new UserMessage("Now, link objects together accordingly."));
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.linkCreationAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);
+            ToolCallService.computeToolCalls(logger, this.model, previousMessages, specifications, List.of(this.linkCreationAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor, rateLimiter);
 
             previousMessages.add(new UserMessage("If the previous tools (especially the linking tool) did not work, try something else. If it did work, do not call for tools."));
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.objectCreationAgent, this.deletionAgent, this.linkCreationAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);
+            ToolCallService.computeToolCalls(logger, this.model, previousMessages, specifications, List.of(this.objectCreationAgent, this.deletionAgent, this.linkCreationAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor, rateLimiter);
 
             previousMessages.add(new UserMessage("Now, continue with the edition of objects and links accordingly."));
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, List.of(), specifications, List.of(this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor);
+            ToolCallService.computeToolCalls(logger, this.model, previousMessages, specifications, List.of(this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor, rateLimiter);
+
+             */
+
+            AiModelsConfiguration.executionDone();
         }
     }
 }

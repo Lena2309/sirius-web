@@ -1,6 +1,7 @@
 package org.eclipse.sirius.web.ai.tool.edition;
 
 import dev.langchain4j.agent.tool.Tool;
+import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.AiToolService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.util.UUIDConverter;
@@ -50,24 +51,24 @@ public class LinkEditionTools implements AiTool {
     // ---------------------------------------------------------------------------------------------------------------
 
     @Tool("Edit the value of an existing link property.")
-    public String editLinkSingleValueProperty(String linkId, String propertyLabel, String newPropertyValue) {
+    public AgentResult editLinkSingleValueProperty(String linkId, String propertyLabel, String newPropertyValue) {
         var objectNode = this.aiToolService.findNode(UUIDConverter.decompress(linkId).toString());
         Objects.requireNonNull(objectNode);
         var representationId = new StringBuilder("details://?objectIds=[").append(objectNode.getTargetObjectId()).append("]");
 
         var widget = this.editionToolService.getWidget(linkId, propertyLabel, false);
 
-        return this.editionToolService.changePropertySingleValue(newPropertyValue, widget, representationId, this.editingContextEventProcessorRegistry);
+        return new AgentResult("editLinkSingleValueProperty", this.editionToolService.changePropertySingleValue(newPropertyValue, widget, representationId, this.editingContextEventProcessorRegistry));
     }
 
     @Tool("Edit the values of an existing link property that can contain multiple ones at once.")
-    public String editLinkMultipleValueProperty(String linkId, String propertyLabel, List<String> newPropertyValues) {
+    public AgentResult editLinkMultipleValueProperty(String linkId, String propertyLabel, List<String> newPropertyValues) {
         var objectNode = this.aiToolService.findNode(UUIDConverter.decompress(linkId).toString());
         Objects.requireNonNull(objectNode);
         var representationId = new StringBuilder("details://?objectIds=[").append(objectNode.getTargetObjectId()).append("]");
 
         var widget = this.editionToolService.getWidget(linkId, propertyLabel, false);
 
-        return this.editionToolService.changePropertyMultipleValue(newPropertyValues, widget, representationId, this.editingContextEventProcessorRegistry);
+        return new AgentResult("editLinkMultipleValueProperty", this.editionToolService.changePropertyMultipleValue(newPropertyValues, widget, representationId, this.editingContextEventProcessorRegistry));
     }
 }
