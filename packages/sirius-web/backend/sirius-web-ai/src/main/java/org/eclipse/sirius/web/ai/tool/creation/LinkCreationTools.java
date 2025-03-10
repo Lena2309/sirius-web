@@ -2,6 +2,7 @@ package org.eclipse.sirius.web.ai.tool.creation;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
+import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.AiToolService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.util.PairDiagramElement;
@@ -97,12 +98,17 @@ public class LinkCreationTools implements AiTool {
         return linkOperations;
     }
 
+    @Tool("Call this tool when  sure that linking two objects together is absolutely impossible. If there is a way to link them, this tool should not be called.")
+    public AgentResult unableToLink(@P("The id of the source object.") String sourceObjectId, @P("The id of the target object.") String targetObjectId) {
+        return new AgentResult("unableToLink", "Not able to link object " + sourceObjectId + " to " + targetObjectId);
+    }
+
     // ---------------------------------------------------------------------------------------------------------------
     //                                                  TOOL EXECUTIONER
     // ---------------------------------------------------------------------------------------------------------------
 
     @Tool("Perform the linking operation, thus creates a new link. Returns the new link's id.")
-    public String linkObjects(@P("The id of the operation to perform.") String linkOperationId, @P("The id of the source object.") String sourceObjectId, @P("The id of the target object.") String targetObjectId) {
+    public AgentResult linkObjects(@P("The id of the operation to perform.") String linkOperationId, @P("The id of the source object.") String sourceObjectId, @P("The id of the target object.") String targetObjectId) {
         UUID decompressedOperationId;
         UUID decompressedSourceId;
         UUID decompressedTargetId;
@@ -136,7 +142,7 @@ public class LinkCreationTools implements AiTool {
 
         this.aiToolService.refreshDiagram();
 
-        var newLinkId = "Failed to create new link";
+        String newLinkId = null;
         for (var newLink : this.aiToolService.getDiagram().getEdges()) {
             if (!alreadyExistingLinks.contains(newLink)) {
                 newLinkId = newLink.getId();
@@ -144,6 +150,10 @@ public class LinkCreationTools implements AiTool {
             }
         }
 
-        return UUIDConverter.compress(newLinkId);
+        if (newLinkId == null) {
+            return new AgentResult("linkObjects", "Failed to create new Link.");
+        }
+
+        return new AgentResult("linkObjects", "Link linking" + sourceObjectId + " and " + targetObjectId + " created with id : " + UUIDConverter.compress(newLinkId) + ".");
     }
 }

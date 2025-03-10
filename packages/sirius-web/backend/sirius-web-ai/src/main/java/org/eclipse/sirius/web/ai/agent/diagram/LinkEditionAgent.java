@@ -2,12 +2,12 @@ package org.eclipse.sirius.web.ai.agent.diagram;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
+import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.ToolCallService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.tool.edition.LinkEditionTools;
@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.EDITION_MODEL;
 
 @Service
 public class LinkEditionAgent implements DiagramAgent {
@@ -30,7 +32,7 @@ public class LinkEditionAgent implements DiagramAgent {
     private IInput input;
 
     public LinkEditionAgent(LinkEditionTools linkEditionTools) {
-        this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.EDITION_MODEL);
+        this.model = AiModelsConfiguration.buildLanguageModel(EDITION_MODEL);
         this.toolClasses.add(linkEditionTools);
     }
 
@@ -47,11 +49,10 @@ public class LinkEditionAgent implements DiagramAgent {
     }
 
     @Tool("Edit a link's properties.")
-    public String editLink(@P("Explain what properties to modify with their new values.") String prompt, @P("The link id to edit, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String linkId) {
-        List<ChatMessage> previousMessages = new ArrayList<>();
-        List<ToolSpecification> specifications = new ArrayList<>();
-
-        initializeSpecifications(List.of(), this.input, this.toolClasses, specifications);
+    public String editLink(@P("Explain what properties to modify with their new values.") String prompt, @P("The link id to edit, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String linkId) throws InterruptedException {
+        var rateLimiter = AiModelsConfiguration.getRateLimiter(this.model);
+        var previousMessages = new ArrayList<ChatMessage>();
+        var specifications = new ArrayList<>(initializeSpecifications(List.of(), this.input, this.toolClasses));
         this.setToolsInput();
 
         previousMessages.add(new SystemMessage("""
@@ -63,9 +64,9 @@ public class LinkEditionAgent implements DiagramAgent {
 
         previousMessages.add(new UserMessage("Here is the link to edit: " + linkId + ". " + prompt));
 
-        ToolCallService.computeToolCalls(logger, this.model, previousMessages, this.toolClasses, specifications);
-        previousMessages.add(new UserMessage("Now, summarize the important information you created, structured as \"PropertyLabel of ObjectId set to PropertyNewValue \""));
+        var results = new ArrayList<AgentResult>();
+        ToolCallService.computeToolCalls(logger, this.model, previousMessages, this.toolClasses, specifications, results, rateLimiter);
 
-        return model.generate(previousMessages).content().text();
+        return results.toString();
     }
 }

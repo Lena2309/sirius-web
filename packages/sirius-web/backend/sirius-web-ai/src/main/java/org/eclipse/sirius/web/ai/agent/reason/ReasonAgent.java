@@ -6,8 +6,6 @@ import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.chat.request.ChatRequest;
-import dev.langchain4j.model.chat.response.ChatResponse;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
 import org.eclipse.sirius.web.ai.agent.Agent;
@@ -40,6 +38,7 @@ public class ReasonAgent implements Agent {
 
     @Tool("List all the relevant and appropriate concepts that are necessary for the user's request in the context of the Diagram.")
     public String think(@P("The user's original prompt") String prompt) {
+        var rateLimiter = AiModelsConfiguration.getRateLimiter(this.model);
         var context = this.buildContextTool.buildDomainContext();
         logger.info(context);
 
@@ -49,27 +48,25 @@ public class ReasonAgent implements Agent {
              Your purpose is to transform the user needs into a prompt that relies on the provided domain concepts.
              You are given a set of concepts, do not define or describe those concepts, but use them to build a representation that would satisfy the user's prompt.
              Your representation must be rich and complete. You have to be clear about what to create and what to link, as well as what special properties to set.
-             Do not hallucinate.
-             """));
-        previousMessages.add(new UserMessage("Here is the domain context:"+context));
+             You have to specify if the concept has to be created or if it should be modified/deleted from the existing diagram.
+             Do not hallucinate. Here is the domain context, pay attention to the different concepts:
+             """ + context));
         previousMessages.add(new UserMessage(prompt));
 
-        ChatRequest request = new ChatRequest.Builder()
-                .messages(previousMessages)
-                .build();
+        logger.info("Rate limit is " + rateLimiter.getPermits());
+        rateLimiter.acquire(logger);
 
         Instant responseStart = Instant.now();
-        ChatResponse rawResponse = this.model.chat(request);
+        var rawResponse = this.model.generate(previousMessages);
         Instant responseFinish = Instant.now();
 
         long responseDuration = Duration.between(responseStart, responseFinish).toMillis();
-        logger.warn("Reason answered in {} ms", responseDuration);
-
+        logger.debug("Reason answered in {} ms", responseDuration);
 
         logger.info(rawResponse.toString());
 
-        previousMessages.add(rawResponse.aiMessage());
+        previousMessages.add(rawResponse.content());
 
-        return rawResponse.aiMessage().text();
+        return rawResponse.content().text();
     }
 }

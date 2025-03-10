@@ -2,6 +2,9 @@ package org.eclipse.sirius.web.ai.tool.deletion;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
+import org.eclipse.sirius.components.core.api.IPayload;
+import org.eclipse.sirius.components.core.api.SuccessPayload;
+import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.AiToolService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.util.UUIDConverter;
@@ -12,10 +15,12 @@ import org.eclipse.sirius.components.collaborative.editingcontext.EditingContext
 import org.eclipse.sirius.components.core.api.IInput;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class LinkDeletionTools implements AiTool {
@@ -39,7 +44,7 @@ public class LinkDeletionTools implements AiTool {
     // ---------------------------------------------------------------------------------------------------------------
 
     @Tool("Delete the link from the diagram.")
-    public String deleteLink(@P("The id of the link to delete.") String linkId) {
+    public AgentResult deleteLink(@P("The id of the link to delete.") String linkId) {
         UUID decompressedLinkId;
 
         try {
@@ -57,16 +62,20 @@ public class LinkDeletionTools implements AiTool {
                 DeletionPolicy.SEMANTIC
         );
 
-        var link = this.aiToolService.findEdge(UUIDConverter.decompress(linkId).toString());
+        var payload = new AtomicReference<Mono<IPayload>>();
 
         this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(deleteInput.editingContextId())
-                .ifPresent(processor -> processor.handle(deleteInput));
+                .ifPresent(processor -> payload.set(processor.handle(deleteInput)));
 
-        this.aiToolService.refreshDiagram();
-        if (this.aiToolService.getDiagram().getEdges().contains(link)) {
-            return "Failure";
-        } else {
-            return "Success";
-        }
+        var output = new AtomicReference<String>();
+        payload.get().subscribe(invokePayload -> {
+            if (invokePayload instanceof SuccessPayload) {
+                output.set("Link successfully deleted.");
+            } else {
+                output.set("Link could not be deleted.");
+            }
+        });
+
+        return new AgentResult("deleteLink", output.get());
     }
 }
