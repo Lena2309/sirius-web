@@ -2,6 +2,7 @@ package org.eclipse.sirius.web.ai.tool.edition;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
+import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.AiToolService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.util.UUIDConverter;
@@ -50,51 +51,11 @@ public class ObjectEditionTools implements AiTool {
     }
 
     // ---------------------------------------------------------------------------------------------------------------
-    //                                                  EDIT OBJECT LABEL
-    // ---------------------------------------------------------------------------------------------------------------
-
-    @Tool("Edit the label of an existing object.")
-    public String editObjectLabel(@P("The object's label Id to edit.") String objectId, String newLabel) {
-        UUID decompressedObjectId;
-
-        try {
-            decompressedObjectId = UUIDConverter.decompress(objectId);
-        } catch (Exception e) {
-            throw new UnsupportedOperationException("Object id is not in the correct format.");
-        }
-
-        var node = this.aiToolService.findNode(decompressedObjectId.toString());
-
-        String labelId;
-
-        var outsideLabels = node.getOutsideLabels();
-        if(!outsideLabels.isEmpty()) {
-            labelId = outsideLabels.get(0).id();
-        } else {
-            labelId = node.getInsideLabel().getId();
-        }
-
-        Objects.requireNonNull(labelId);
-        var diagramInput = new EditLabelInput(
-                UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
-                labelId,
-                newLabel
-        );
-
-        this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(diagramInput.editingContextId())
-                .ifPresent(processor -> processor.handle(diagramInput));
-
-        return "Success";
-    }
-
-    // ---------------------------------------------------------------------------------------------------------------
     //                                                  EDIT OBJECT PROPERTIES
     // ---------------------------------------------------------------------------------------------------------------
 
     @Tool("Edit the value of an existing object's single valued property.")
-    public String editObjectSingleValueProperty(String objectId, String propertyLabel, String newPropertyValue) {
+    public AgentResult editObjectSingleValueProperty(String objectId, String propertyLabel, String newPropertyValue) {
         UUID decompressedObjectId;
 
         try {
@@ -109,11 +70,11 @@ public class ObjectEditionTools implements AiTool {
 
         var widget = this.editionToolService.getWidget(objectId, propertyLabel, true);
 
-        return this.editionToolService.changePropertySingleValue(newPropertyValue, widget, representationId, this.editingContextEventProcessorRegistry);
+        return new AgentResult("editObjectSingleValueProperty", this.editionToolService.changePropertySingleValue(newPropertyValue, widget, representationId, this.editingContextEventProcessorRegistry));
     }
 
     @Tool("Edit the values of an existing object's multiple valued property.")
-    public String editObjectMultipleValueProperty(String objectId, String propertyLabel, List<String> newPropertyValues) {
+    public AgentResult editObjectMultipleValueProperty(String objectId, String propertyLabel, List<String> newPropertyValues) {
         UUID decompressedObjectId;
 
         try {
@@ -128,6 +89,6 @@ public class ObjectEditionTools implements AiTool {
 
         var widget = this.editionToolService.getWidget(objectId, propertyLabel, true);
 
-        return this.editionToolService.changePropertyMultipleValue(newPropertyValues, widget, representationId, this.editingContextEventProcessorRegistry);
+        return new AgentResult("editObjectMultipleValueProperty", this.editionToolService.changePropertyMultipleValue(newPropertyValues, widget, representationId, this.editingContextEventProcessorRegistry));
     }
 }

@@ -1,6 +1,9 @@
 package org.eclipse.sirius.web.ai.service;
 
+import org.eclipse.sirius.components.collaborative.diagrams.dto.InvokeSingleClickOnDiagramElementToolSuccessPayload;
+import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.core.api.IEditingContextSearchService;
+import org.eclipse.sirius.components.core.api.IPayload;
 import org.eclipse.sirius.web.ai.dto.AiRequestInput;
 import org.eclipse.sirius.components.collaborative.api.IRepresentationSearchService;
 import org.eclipse.sirius.components.core.api.IEditingContext;
@@ -8,9 +11,14 @@ import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.components.diagrams.Diagram;
 import org.eclipse.sirius.components.diagrams.Edge;
 import org.eclipse.sirius.components.diagrams.Node;
+import org.eclipse.sirius.web.ai.util.UUIDConverter;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Mono;
 
+import java.util.ArrayList;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class AiToolService {
@@ -57,6 +65,90 @@ public class AiToolService {
         this.refreshEditingContext();
         return this.editingContext;
     }
+
+    public synchronized String createNewNode(EditingContextEventProcessorRegistry editingContextEventProcessorRegistry, IInput input, String editingContextId, String parentId) {
+        String newObjectId = null;
+        var alreadyExistingObjects = new ArrayList<>();
+
+        if (parentId != null) {
+            var parentNode = findNode(UUIDConverter.decompress(parentId).toString());
+            for (var child : parentNode.getChildNodes()) {
+                alreadyExistingObjects.add(child.getId());
+            }
+        } else {
+
+            for (var node : diagram.getNodes()) {
+                alreadyExistingObjects.add(node.getId());
+            }
+        }
+
+        if (!callEditingContextEventProcessor(editingContextEventProcessorRegistry, input, editingContextId)) {
+            return null;
+        }
+
+        this.refreshDiagram();
+
+        if (parentId != null) {
+            var parentNode = findNode(UUIDConverter.decompress(parentId).toString());
+            for (var child : parentNode.getChildNodes()) {
+                if (!alreadyExistingObjects.contains(child.getId())) {
+                    newObjectId = child.getId();
+                    break;
+                }
+            }
+        } else {
+            for (var node : diagram.getNodes()) {
+                if (!alreadyExistingObjects.contains(node.getId())) {
+                    newObjectId = node.getId();
+                    break;
+                }
+            }
+        }
+
+        return newObjectId;
+    }
+
+    public synchronized String createNewChild(String parentId, EditingContextEventProcessorRegistry editingContextEventProcessorRegistry, IInput input, String editingContextId) {
+        var parentNode = this.findNode(UUIDConverter.decompress(parentId).toString());
+        var alreadyExistingChildren = new ArrayList<String>();
+
+        for (var child : parentNode.getChildNodes()) {
+            alreadyExistingChildren.add(child.getId());
+        }
+
+        if (!callEditingContextEventProcessor(editingContextEventProcessorRegistry, input, editingContextId)) {
+            return "Failed to create child.";
+        }
+
+        this.refreshDiagram();
+        parentNode = this.findNode(UUIDConverter.decompress(parentId).toString());
+
+        String newChildId = null;
+        for (var child : parentNode.getChildNodes()) {
+            if (!alreadyExistingChildren.contains(child.getId())) {
+                newChildId = child.getId();
+                break;
+            }
+        }
+
+        return newChildId;
+    }
+
+    private boolean callEditingContextEventProcessor(EditingContextEventProcessorRegistry editingContextEventProcessorRegistry, IInput input, String editingContextId) {
+        var payload = new AtomicReference<Mono<IPayload>>();
+        editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(editingContextId)
+                .ifPresent(processor -> payload.set(processor.handle(input)));
+
+        var objectCreated = new AtomicBoolean(false);
+        payload.get().subscribe(invokePayload -> {
+            if (invokePayload instanceof InvokeSingleClickOnDiagramElementToolSuccessPayload) {
+                objectCreated.set(true);
+            }
+        });
+
+        return objectCreated.get();
+    }
+
 
     private void refreshEditingContext() {
         if (this.input instanceof AiRequestInput aiRequestInput) {

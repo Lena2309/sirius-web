@@ -2,12 +2,12 @@ package org.eclipse.sirius.web.ai.agent.diagram;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
+import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.ToolCallService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.tool.creation.LinkCreationTools;
@@ -18,6 +18,8 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.DIAGRAM_MODEL;
 
 @Service
 public class LinkCreationAgent implements DiagramAgent {
@@ -30,7 +32,7 @@ public class LinkCreationAgent implements DiagramAgent {
     private IInput input;
 
     public LinkCreationAgent(LinkCreationTools linkCreationTools) {
-        this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.DIAGRAM_MODEL);
+        this.model = AiModelsConfiguration.buildLanguageModel(DIAGRAM_MODEL);
         this.toolClasses.add(linkCreationTools);
     }
 
@@ -47,27 +49,24 @@ public class LinkCreationAgent implements DiagramAgent {
     }
 
     @Tool("Links two objects together. Do not mention other properties here.")
-    public String linkObjects(@P("Explain what kind of links is preferred, if possible.") String prompt, @P("The source object id, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String sourceObjectId, @P("The target object id, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String targetObjectId) throws UnsupportedOperationException {
-        List<ChatMessage> previousMessages = new ArrayList<>();
-        List<ToolSpecification> specifications = new ArrayList<>();
-
-        initializeSpecifications(List.of(), this.input, this.toolClasses, specifications);
+    public String linkObjects(@P("Explain what kind of links is preferred, if possible.") String prompt, @P("The source object id, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String sourceObjectId, @P("The target object id, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String targetObjectId) throws UnsupportedOperationException, InterruptedException {
+        var rateLimiter = AiModelsConfiguration.getRateLimiter(this.model);
+        var previousMessages = new ArrayList<ChatMessage>();
+        var specifications = new ArrayList<>(initializeSpecifications(List.of(), this.input, this.toolClasses));
         this.setToolsInput();
 
         previousMessages.add(new SystemMessage("""
             You are an assistant for Diagram Object Linking.
             Do not write any text, just call the correct tools to link two diagram objects given in the user's request .
-            Do not hallucinate.
+            Do not hallucinate. When it is possible to link objects, link them, if possible with the user preferred link.
             """
         ));
 
         previousMessages.add(new UserMessage("Here is the source diagram object id: " + sourceObjectId + " and here is the target object id: " + targetObjectId + ". " + prompt));
 
-        ToolCallService.computeToolCalls(logger, this.model, previousMessages, this.toolClasses, specifications);
-        // ToolCallService.computeToolCalls(this.model, previousMessages, this.toolClasses, specifications, List.of(this.editionAgent));
+        var results = new ArrayList<AgentResult>();
+        ToolCallService.computeToolCalls(logger, this.model, previousMessages, this.toolClasses, specifications, results, rateLimiter);
 
-        previousMessages.add(new UserMessage("Now, summarize the important information you created, structured as \"Link LinkType created with id LinkId\", or explain why your task was not concluded."));
-
-        return model.generate(previousMessages).content().text();
+        return results.toString();
     }
 }
