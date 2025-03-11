@@ -2,10 +2,11 @@ package org.eclipse.sirius.web.ai.agent.diagram;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.request.ChatRequestParameters;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
 import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.ToolCallService;
@@ -19,7 +20,6 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.DIAGRAM_MODEL;
 import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.EDITION_MODEL;
 
 @Service
@@ -50,23 +50,27 @@ public class ObjectEditionAgent implements DiagramAgent {
     }
 
     @Tool("Edit an object's properties.")
-    public String editObject(@P("Explain what properties to modify with their new values.") String prompt, @P("The object id to edit, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String objectId) throws InterruptedException {
+    public String editObjectProperties(@P("Explain what properties to modify with their new values.") String prompt, @P("The object id to edit, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String objectId) {
         var rateLimiter = AiModelsConfiguration.getRateLimiter(this.model);
-        var previousMessages = new ArrayList<ChatMessage>();
         var specifications = new ArrayList<>(initializeSpecifications(List.of(), this.input, this.toolClasses));
         this.setToolsInput();
 
-        previousMessages.add(new SystemMessage("""
+        var systemMessage = new SystemMessage("""
             You are an assistant for Diagram Object Edition.
             Do not write any text, just call the correct tools to edit the correct diagram element given in the user's request.
             Do not hallucinate, do not invent properties and pay attention to their types.
             """
-        ));
+        );
 
-        previousMessages.add(new UserMessage("Here is the object to edit: " + objectId + ". " + prompt));
+        var chatRequest = ChatRequest.builder()
+                .messages(List.of(systemMessage, new UserMessage("Here is the object to edit: " + objectId + ". " + prompt)))
+                .parameters(ChatRequestParameters.builder()
+                        .toolSpecifications(specifications)
+                        .build())
+                .build();
 
         var results = new ArrayList<AgentResult>();
-        ToolCallService.computeToolCalls(logger, this.model, previousMessages, this.toolClasses, specifications, results, rateLimiter);
+        ToolCallService.computeToolCalls(logger, this.model, chatRequest, this.toolClasses, results, rateLimiter);
 
         return results.toString();
     }

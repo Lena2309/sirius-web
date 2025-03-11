@@ -2,11 +2,14 @@ package org.eclipse.sirius.web.ai.agent.diagram;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.agent.tool.ToolSpecification;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.request.ChatRequestParameters;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
+import org.eclipse.sirius.web.ai.configuration.BlockingRateLimiter;
 import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.ToolCallService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
@@ -51,41 +54,45 @@ public class ObjectCreationAgent implements DiagramAgent {
     @Tool("Creates one root object and its potential children. Does not edit them outside of naming them.")
     public String createObject(@P("Explain what object to create and the children it may contain, mention names if necessary. Do not mention links and properties here.") String prompt) {
         var rateLimiter = AiModelsConfiguration.getRateLimiter(this.model);
-        var previousMessages = new ArrayList<ChatMessage>();
         var specifications = new ArrayList<>(initializeSpecifications(List.of(), this.input, this.toolClasses));
         this.setToolsInput();
 
-        previousMessages.add(new SystemMessage("""
+        var systemMessage = new SystemMessage("""
             You are an assistant for Object Diagram Generation.
             Do not write any text, just call the correct tools to create the correct diagram elements listed in the user's request.
             Do not hallucinate.
             """
-        ));
-        previousMessages.add(new UserMessage(prompt));
+        );
 
-        var results = new ArrayList<AgentResult>();
-        ToolCallService.computeToolCalls(logger, this.model, previousMessages, this.toolClasses, specifications, results, rateLimiter);
-
-        return results.toString();
+        return callTools(prompt, rateLimiter, specifications, systemMessage);
     }
 
     @Tool("Creates one or multiple children in an object. Does not edit them outside of naming them. Useless if the parent does not already exists.")
     public String createChild(@P("Explain what child to create within an already existing object and the children it may contain, mention names if necessary. Do not mention links and properties here.") String prompt, @P("The parent id.") String parentId) {
         var rateLimiter = AiModelsConfiguration.getRateLimiter(this.model);
-        var previousMessages = new ArrayList<ChatMessage>();
         var specifications = new ArrayList<>(initializeSpecifications(List.of(), this.input, this.toolClasses));
         this.setToolsInput();
 
-        previousMessages.add(new SystemMessage("""
+        var systemMessage = new SystemMessage("""
             You are an assistant for Diagram Generation.
             Do not write any text, just call the correct tools to create the correct diagram elements listed in the user's request, do not hallucinate.
             Your purpose is to create children for the object:
             """+parentId
-        ));
-        previousMessages.add(new UserMessage(prompt));
+        );
+
+        return callTools(prompt, rateLimiter, specifications, systemMessage);
+    }
+
+    private String callTools(String prompt, BlockingRateLimiter rateLimiter, ArrayList<ToolSpecification> specifications, SystemMessage systemMessage) {
+        var chatRequest = ChatRequest.builder()
+                .messages(List.of(systemMessage, new UserMessage(prompt)))
+                .parameters(ChatRequestParameters.builder()
+                        .toolSpecifications(specifications)
+                        .build())
+                .build();
 
         var results = new ArrayList<AgentResult>();
-        ToolCallService.computeToolCalls(logger, this.model, previousMessages, this.toolClasses, specifications, results, rateLimiter);
+        ToolCallService.computeToolCalls(logger, this.model, chatRequest, this.toolClasses, results, rateLimiter);
 
         return results.toString();
     }

@@ -2,10 +2,11 @@ package org.eclipse.sirius.web.ai.agent.diagram;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.request.ChatRequestParameters;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
 import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.ToolCallService;
@@ -49,23 +50,27 @@ public class LinkCreationAgent implements DiagramAgent {
     }
 
     @Tool("Links two objects together. Do not mention other properties here.")
-    public String linkObjects(@P("Explain what kind of links is preferred, if possible.") String prompt, @P("The source object id, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String sourceObjectId, @P("The target object id, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String targetObjectId) throws UnsupportedOperationException, InterruptedException {
+    public String linkObjects(@P("Explain what should be linked and why (briefly), and optionally how. Precise that the preferred type of link is optional.") String prompt, @P("The source object id, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String sourceObjectId, @P("The target object id, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String targetObjectId) throws UnsupportedOperationException {
         var rateLimiter = AiModelsConfiguration.getRateLimiter(this.model);
-        var previousMessages = new ArrayList<ChatMessage>();
         var specifications = new ArrayList<>(initializeSpecifications(List.of(), this.input, this.toolClasses));
         this.setToolsInput();
 
-        previousMessages.add(new SystemMessage("""
+        var systemMessage = new SystemMessage("""
             You are an assistant for Diagram Object Linking.
             Do not write any text, just call the correct tools to link two diagram objects given in the user's request .
             Do not hallucinate. When it is possible to link objects, link them, if possible with the user preferred link.
             """
-        ));
+        );
 
-        previousMessages.add(new UserMessage("Here is the source diagram object id: " + sourceObjectId + " and here is the target object id: " + targetObjectId + ". " + prompt));
+        var chatRequest = ChatRequest.builder()
+                .messages(List.of(systemMessage, new UserMessage("Here is the source diagram object id: " + sourceObjectId + " and here is the target object id: " + targetObjectId + ". " + prompt)))
+                .parameters(ChatRequestParameters.builder()
+                        .toolSpecifications(specifications)
+                        .build())
+                .build();
 
         var results = new ArrayList<AgentResult>();
-        ToolCallService.computeToolCalls(logger, this.model, previousMessages, this.toolClasses, specifications, results, rateLimiter);
+        ToolCallService.computeToolCalls(logger, this.model, chatRequest, this.toolClasses, results, rateLimiter);
 
         return results.toString();
     }
