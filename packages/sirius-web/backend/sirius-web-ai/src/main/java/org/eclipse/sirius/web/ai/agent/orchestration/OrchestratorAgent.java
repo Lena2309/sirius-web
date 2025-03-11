@@ -1,10 +1,10 @@
-package org.eclipse.sirius.web.ai.agent.routing;
+package org.eclipse.sirius.web.ai.agent.orchestration;
 
-import dev.langchain4j.agent.tool.ToolSpecification;
-import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.request.ChatRequestParameters;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
 import org.eclipse.sirius.web.ai.agent.Agent;
 import org.eclipse.sirius.web.ai.agent.diagram.*;
@@ -61,11 +61,10 @@ public class OrchestratorAgent implements Agent {
     public void compute(IInput input) {
         if (input instanceof AiRequestInput aiRequestInput) {
             var rateLimiter = AiModelsConfiguration.getRateLimiter(this.model);
-            var previousMessages = new ArrayList<ChatMessage>();
             var specifications = new ArrayList<>(initializeSpecifications(List.of(this.objectCreationAgent, this.deletionAgent, this.objectEditionAgent, this.linkCreationAgent), aiRequestInput, List.of()));
             this.reasonAgent.setInput(aiRequestInput);
 
-            previousMessages.add(new SystemMessage("""
+            var systemMessage = new SystemMessage("""
                     You are an orchestrating agent for Diagram Generation.
                     From the user prompt and the list of concepts computed from it, call the correct tools to create or edit a diagram.
                     You are encouraged to call multiple tools at the same time, since they are parallelized.
@@ -76,30 +75,19 @@ public class OrchestratorAgent implements Agent {
                         1. Object Creations and Deletions
                         2. Link Creations and Deletions
                         3. Object and Link Editions
-                    The batches must be separate.
-                    """));
-
-            previousMessages.add(new UserMessage(aiRequestInput.prompt()));
+                    The batches must be separate, but you can make multiple tool calls at the time per batches.
+                    """);
 
             var concepts = this.reasonAgent.think(aiRequestInput.prompt());
-            previousMessages.add(new UserMessage("The listed concepts computed with the original user prompt: "+concepts));
 
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, specifications, List.of( this.deletionAgent, this.objectCreationAgent, this.linkCreationAgent, this.objectEditionAgent, this.linkEditionAgent), this.taskExecutor, rateLimiter);
+            var chatRequest = ChatRequest.builder()
+                    .messages(List.of(systemMessage, new UserMessage(concepts)))
+                    .parameters(ChatRequestParameters.builder()
+                            .toolSpecifications(specifications)
+                            .build())
+                    .build();
 
-            /*
-            previousMessages.add(new UserMessage("First, create objects accordingly and/or modify already existing elements."));
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, specifications, List.of(this.objectCreationAgent, this.deletionAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor, rateLimiter);
-
-            previousMessages.add(new UserMessage("Now, link objects together accordingly."));
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, specifications, List.of(this.linkCreationAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor, rateLimiter);
-
-            previousMessages.add(new UserMessage("If the previous tools (especially the linking tool) did not work, try something else. If it did work, do not call for tools."));
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, specifications, List.of(this.objectCreationAgent, this.deletionAgent, this.linkCreationAgent, this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor, rateLimiter);
-
-            previousMessages.add(new UserMessage("Now, continue with the edition of objects and links accordingly."));
-            ToolCallService.computeToolCalls(logger, this.model, previousMessages, specifications, List.of(this.objectEditionAgent , this.linkEditionAgent), this.taskExecutor, rateLimiter);
-
-             */
+            ToolCallService.computeToolCalls(logger, this.model, chatRequest, List.of( this.deletionAgent, this.objectCreationAgent, this.linkCreationAgent, this.objectEditionAgent, this.linkEditionAgent), this.taskExecutor, rateLimiter);
 
             AiModelsConfiguration.executionDone();
         }

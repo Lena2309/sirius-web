@@ -3,10 +3,9 @@ package org.eclipse.sirius.web.ai.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
-import dev.langchain4j.agent.tool.ToolSpecification;
-import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
 import org.eclipse.sirius.web.ai.agent.Agent;
 import org.eclipse.sirius.web.ai.configuration.BlockingRateLimiter;
 import org.eclipse.sirius.web.ai.dto.AgentResult;
@@ -28,30 +27,28 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class ToolCallService {
-    //private static volatile List<ToolExecutionResultMessage> agentsOutputs = new ArrayList<>();
 
     // ---------------------------------------------------------------------------------------------------------------
     //                                                    ORCHESTRATOR
     // ---------------------------------------------------------------------------------------------------------------
 
-    public static void computeToolCalls(Logger logger, ChatLanguageModel model, List<ChatMessage> previousMessages, List<ToolSpecification > specifications, List<Agent> agents, ThreadPoolTaskExecutor taskExecutor, BlockingRateLimiter rateLimiter) {
+    public static void computeToolCalls(Logger logger, ChatLanguageModel model, ChatRequest chatRequest, List<Agent> agents, ThreadPoolTaskExecutor taskExecutor, BlockingRateLimiter rateLimiter) {
         var latch = new AtomicReference<>(new CountDownLatch(0));
         var agentsOutputs = new ArrayList<ToolExecutionResultMessage>();
 
         //logger.info("Rate limit is " + rateLimiter.getPermits());
         rateLimiter.acquire(logger);
-        //noinspection removal
-        var response = model.generate(previousMessages, specifications);
+        var response = model.chat(chatRequest).aiMessage();
 
         var requestAttributes = RequestContextHolder.getRequestAttributes();
         RequestContextHolder.setRequestAttributes(requestAttributes, true);
 
-        while (response.content().hasToolExecutionRequests()) {
+        while (response.hasToolExecutionRequests()) {
 
-            previousMessages.add(response.content());
-            logger.info(response.content().toolExecutionRequests().toString());
+            chatRequest.messages().add(response);
+            logger.info(response.toolExecutionRequests().toString());
 
-            for (var toolExecutionRequest : response.content().toolExecutionRequests()) {
+            for (var toolExecutionRequest : response.toolExecutionRequests()) {
                 tryToolAgentExecution(logger, agents, toolExecutionRequest, agentsOutputs, taskExecutor, latch);
             }
 
@@ -64,7 +61,7 @@ public class ToolCallService {
 
             if (!agentsOutputs.isEmpty()) {
                 logger.info(agentsOutputs.toString());
-                previousMessages.addAll(agentsOutputs);
+                chatRequest.messages().addAll(agentsOutputs);
                 agentsOutputs.clear();
             }
 
@@ -72,8 +69,7 @@ public class ToolCallService {
             rateLimiter.acquire(logger);
 
             Instant responseStart = Instant.now();
-            //noinspection removal
-            response = model.generate(previousMessages, specifications);
+            response = model.chat(chatRequest).aiMessage();
             Instant responseFinish = Instant.now();
 
             long responseDuration = Duration.between(responseStart, responseFinish).toMillis();
@@ -116,30 +112,28 @@ public class ToolCallService {
     //                                                      TOOL AGENTS
     // ---------------------------------------------------------------------------------------------------------------
 
-    public static void computeToolCalls(Logger logger, ChatLanguageModel model, List<ChatMessage> previousMessages, List<AiTool> aiTools, List<ToolSpecification> specifications, List<AgentResult> toolResults, BlockingRateLimiter rateLimiter) {
+    public static void computeToolCalls(Logger logger, ChatLanguageModel model, ChatRequest chatRequest, List<AiTool> aiTools, List<AgentResult> toolResults, BlockingRateLimiter rateLimiter) {
         //logger.info("Rate limit is " + rateLimiter.getPermits());
         rateLimiter.acquire(logger);
-        //noinspection removal
-        var response = model.generate(previousMessages, specifications);
+        var response = model.chat(chatRequest).aiMessage();
 
-        while (response.content().hasToolExecutionRequests()) {
-            previousMessages.add(response.content());
-            logger.info(response.content().toolExecutionRequests().toString());
+        while (response.hasToolExecutionRequests()) {
+            chatRequest.messages().add(response);
+            logger.info(response.toolExecutionRequests().toString());
 
-            for (var toolExecutionRequest : response.content().toolExecutionRequests()) {
+            for (var toolExecutionRequest : response.toolExecutionRequests()) {
                 var toolExecutionResultMessage = tryAiToolExecution(logger, aiTools, toolExecutionRequest, toolResults);
 
                 logger.info("tool execution result : {}", toolExecutionResultMessage.text());
 
-                previousMessages.add(toolExecutionResultMessage);
+                chatRequest.messages().add(toolExecutionResultMessage);
             }
 
             //logger.info("Rate limit is " + rateLimiter.getPermits());
             rateLimiter.acquire(logger);
 
             Instant responseStart = Instant.now();
-            //noinspection removal
-            response = model.generate(previousMessages, specifications);
+            response = model.chat(chatRequest).aiMessage();
             Instant responseFinish = Instant.now();
 
             long responseDuration = Duration.between(responseStart, responseFinish).toMillis();
