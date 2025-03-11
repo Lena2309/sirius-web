@@ -2,10 +2,11 @@ package org.eclipse.sirius.web.ai.agent.reason;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
-import dev.langchain4j.data.message.ChatMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.request.ChatRequestParameters;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
 import org.eclipse.sirius.web.ai.agent.Agent;
@@ -42,22 +43,27 @@ public class ReasonAgent implements Agent {
         var context = this.buildContextTool.buildDomainContext();
         logger.info(context);
 
-        List<ChatMessage> previousMessages = new ArrayList<>();
-        previousMessages.add(new SystemMessage("""
+        var systemMessage = new SystemMessage("""
              You are a reasoning agent for diagram driven data Generation.
              Your purpose is to transform the user needs into a prompt that relies on the provided domain concepts.
              You are given a set of concepts, do not define or describe those concepts, but use them to build a representation that would satisfy the user's prompt.
              Your representation must be rich and complete. You have to be clear about what to create and what to link, as well as what special properties to set.
+             Links and objects both have properties, specify what special properties to set when possible.
              You have to specify if the concept has to be created or if it should be modified/deleted from the existing diagram.
-             Do not hallucinate. Here is the domain context, pay attention to the different concepts:
-             """ + context));
-        previousMessages.add(new UserMessage(prompt));
+             Do not hallucinate. Here is the domain context, pay attention to the concepts that could share similar names but are still different:
+             """ + context);
+
+        var chatRequest = ChatRequest.builder()
+                .messages(List.of(systemMessage, new UserMessage(prompt)))
+                .parameters(ChatRequestParameters.builder()
+                        .build())
+                .build();
 
         logger.info("Rate limit is " + rateLimiter.getPermits());
         rateLimiter.acquire(logger);
 
         Instant responseStart = Instant.now();
-        var rawResponse = this.model.generate(previousMessages);
+        var rawResponse = this.model.chat(chatRequest);
         Instant responseFinish = Instant.now();
 
         long responseDuration = Duration.between(responseStart, responseFinish).toMillis();
@@ -65,8 +71,8 @@ public class ReasonAgent implements Agent {
 
         logger.info(rawResponse.toString());
 
-        previousMessages.add(rawResponse.content());
+        chatRequest.messages().add(rawResponse.aiMessage());
 
-        return rawResponse.content().text();
+        return rawResponse.aiMessage().text();
     }
 }
