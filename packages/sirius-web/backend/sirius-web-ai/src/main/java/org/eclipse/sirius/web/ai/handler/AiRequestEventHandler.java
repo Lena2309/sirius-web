@@ -2,7 +2,7 @@ package org.eclipse.sirius.web.ai.handler;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import org.eclipse.sirius.web.ai.agent.routing.OrchestratorAgent;
+import org.eclipse.sirius.web.ai.agent.orchestration.OrchestratorAgent;
 import org.eclipse.sirius.web.ai.dto.AiRequestInput;
 import org.eclipse.sirius.web.ai.dto.AiRequestSuccessPayload;
 import org.eclipse.sirius.components.collaborative.api.ChangeDescription;

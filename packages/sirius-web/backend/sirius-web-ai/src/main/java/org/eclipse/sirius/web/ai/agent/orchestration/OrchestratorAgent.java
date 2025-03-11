@@ -22,7 +22,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.ORCHESTRATION_MODEL;
+import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.ORCHESTRATION;
 
 @Service
 public class OrchestratorAgent implements Agent {
@@ -48,7 +48,7 @@ public class OrchestratorAgent implements Agent {
                              ObjectCreationAgent objectCreationAgent, ObjectEditionAgent objectEditionAgent,
                              LinkCreationAgent linkCreationAgent, LinkEditionAgent linkEditionAgent,
                              @Qualifier("threadPoolTaskExecutor") ThreadPoolTaskExecutor taskExecutor) {
-        this.model = AiModelsConfiguration.buildLanguageModel(ORCHESTRATION_MODEL);
+        this.model = AiModelsConfiguration.buildChatModel(ORCHESTRATION);
         this.reasonAgent = Objects.requireNonNull(reasonAgent);
         this.deletionAgent = Objects.requireNonNull(deletionAgent);
         this.objectCreationAgent = Objects.requireNonNull(objectCreationAgent);
