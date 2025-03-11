@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.DIAGRAM_MODEL;
+import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.DIAGRAM;
 
 @Service
 public class DeletionAgent implements DiagramAgent {
@@ -34,7 +34,7 @@ public class DeletionAgent implements DiagramAgent {
     private IInput input;
 
     public DeletionAgent(ObjectDeletionTools objectDeletionTools, LinkDeletionTools linkDeletionTools) {
-        this.model = AiModelsConfiguration.buildLanguageModel(DIAGRAM_MODEL);
+        this.model = AiModelsConfiguration.buildChatModel(DIAGRAM);
         this.toolClasses.add(objectDeletionTools);
         this.toolClasses.add(linkDeletionTools);
     }

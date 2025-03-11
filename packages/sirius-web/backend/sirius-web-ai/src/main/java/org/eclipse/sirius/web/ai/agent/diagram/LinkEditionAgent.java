@@ -20,7 +20,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.EDITION_MODEL;
+import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.EDITION;
 
 @Service
 public class LinkEditionAgent implements DiagramAgent {
@@ -33,7 +33,7 @@ public class LinkEditionAgent implements DiagramAgent {
     private IInput input;
 
     public LinkEditionAgent(LinkEditionTools linkEditionTools) {
-        this.model = AiModelsConfiguration.buildLanguageModel(EDITION_MODEL);
+        this.model = AiModelsConfiguration.buildChatModel(EDITION);
         this.toolClasses.add(linkEditionTools);
     }
 
