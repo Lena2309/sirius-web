@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.DIAGRAM_MODEL;
+import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.DIAGRAM;
 
 @Service
 public class ObjectCreationAgent implements DiagramAgent {
@@ -35,7 +35,7 @@ public class ObjectCreationAgent implements DiagramAgent {
     private IInput input;
 
     public ObjectCreationAgent(ObjectCreationTools objectCreationTools) {
-        this.model = AiModelsConfiguration.buildLanguageModel(DIAGRAM_MODEL);
+        this.model = AiModelsConfiguration.buildChatModel(DIAGRAM);
         this.toolClasses.add(objectCreationTools);
     }
 

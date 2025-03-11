@@ -29,7 +29,7 @@ public class ReasonAgent implements Agent {
     private final BuildContextTool buildContextTool;
 
     public ReasonAgent(BuildContextTool buildContextTool) {
-        this.model = AiModelsConfiguration.buildLanguageModel(AiModelsConfiguration.ModelType.REASONING_MODEL);
+        this.model = AiModelsConfiguration.buildChatModel(AiModelsConfiguration.ModelType.REASON);
         this.buildContextTool = Objects.requireNonNull(buildContextTool);
     }
 
