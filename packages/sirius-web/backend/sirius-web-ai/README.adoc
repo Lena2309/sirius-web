@@ -1,0 +1,55 @@
+= LLM Model Configuration
+
+This document describes the available configuration properties for setting up different chat models, the supported APIs, and the default values for each parameter.
+
+== Supported APIs
+
+The following AI providers are currently supported: *OpenAI*, *Mistral AI* and *Anthropic*.
+
+== Configuration of Properties
+
+Each agent can be configured via system properties.
+The definition of properties follows the convention:
+
+`-D<api-provider>-api-key=<api-key>`
+
+`-D<agent-type>-agent=<api-provider>`
+
+`-D<agent-type>-model-name=<model>`
+
+`-D<agent-type>-model-temperature=<temperature>`
+
+where:
+
+- `<api-provider>` can be `open-ai`, `mistral-ai`, or `anthropic`.
+- `<api-key>` is your api key.
+- `<agent-type>` is one of `reason`, `orchestration`, `diagram`, `edition`.
+- `<model>` is the specific model name, (default: `GPT_4_O` for OpenAI, `MISTRAL_LARGE_LATEST` for Mistral, `CLAUDE_3_HAIKU_20240307` for Anthropic).
+- `<temperature>` controls randomness in the response generation (default: `0.5` for reason-agent, `0.4` for orchestration-agent and edition-agent, `0.3` for diagram-agent)
+
+=== Purpose of each Agent
+
+- *Reason Agent:* Used for computing a representation based on the user prompt and the diagram context.
+
+- *Orchestration Agent:* Used for orchestrating multiple agents in order to create a diagram based on the representation computed by the reason agent.
+
+- *Diagram Agent:* Used for generating and deleting diagram elements.
+
+- *Edition Agent:* Used for object and link editing.
+
+== Example Usage
+
+[source,sh]
+----
+java --spring.datasource.url=jdbc:postgresql://localhost:5433/sirius-web-db \
+     --spring.datasource.username=dbuser \
+     --spring.datasource.password=dbpwd \
+     -Dmistral-ai-api-key=yourMistralApiKey \
+     -Dopen-ai-api-key=yourOpenAiApiKey \
+     -Dreason-agent=mistral-ai \
+     -Dreason-model-temperature=0.7 \
+     -Ddiagram-agent=open-ai \
+     -Dorchestration-agent=open-ai \
+     -Dedition-agent=open-ai \
+     -jar sirius-web.jar
+----
