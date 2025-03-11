@@ -101,8 +101,7 @@ public class ToolCallService {
                 } catch (Exception e) {
                     if (e.getCause() instanceof UnsupportedOperationException unsupported) {
                         agentsOutputs.add(ToolExecutionResultMessage.from(toolExecutionRequest, unsupported.getMessage()));
-                    } else if (e instanceof NoSuchMethodException ignored) {
-                    } else {
+                    } else if (!(e instanceof NoSuchMethodException)){
                         logger.error(e.getMessage(), e);
                     }
                 } finally {
@@ -171,9 +170,8 @@ public class ToolCallService {
             } catch (Exception e) {
                 if (e.getCause() instanceof UnsupportedOperationException unsupported) {
                     return ToolExecutionResultMessage.from(toolExecutionRequest, unsupported.getMessage());
-                } else if (e instanceof NoSuchMethodException ignored) {
-                } else {
-                    logger.error(e.toString());
+                } else if (!(e instanceof NoSuchMethodException)){
+                    logger.error(e.getMessage(), e);
                 }
             }
         }
