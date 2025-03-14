@@ -1,0 +1,49 @@
+Considering the following domain, Build a Fully Functional Smart City.
+{
+  "possible_root_objects": [
+    {
+      "name": "SmartCity",
+      "possible_children": [
+        {
+          "name": "PowerGrid",
+          "possible_children": []
+        },
+        {
+          "name": "TrafficSystem",
+          "possible_children": []
+        },
+        {
+          "name": "EmergencyServices",
+          "possible_children": []
+        },
+        {
+          "name": "CommunicationNetwork",
+          "possible_children": []
+        }
+      ]
+    },
+    {
+      "name": "CommunicationNetwork",
+      "possible_children": []
+    }
+  ],
+  "possible_links": [
+    {
+      "source_to_target": "PowerGrid To TrafficSystem"
+    },
+    {
+      "source_to_target": "PowerGrid To EmergencyServices"
+    },
+    {
+      "source_to_target": "CommunicationNetwork To EmergencyServices"
+    },
+    {
+      "source_to_target": "TrafficSystem To EmergencyServices"
+    },
+    {
+      "source_to_target": "CommunicationNetwork To TrafficSystem"
+    }
+  ]
+}
+
+Build a Fully Functional Smart City.

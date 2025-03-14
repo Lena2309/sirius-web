@@ -1,0 +1,26 @@
+Considering the following domain, Build a Smart Restaurant with Online Orders.
+{
+  "possible_root_objects" : [ {
+    "name" : "Restaurant",
+    "possible_children" : [ {
+      "name" : "Kitchen",
+      "possible_children" : [ ]
+    }, {
+      "name" : "DiningArea",
+      "possible_children" : [ ]
+    }, {
+      "name" : "OnlineOrderSystem",
+      "possible_children" : [ ]
+    } ]
+  }, {
+    "name" : "OnlineOrderSystem",
+    "possible_children" : [ ]
+  } ],
+  "possible_links" : [ {
+    "source_to_target" : "OnlineOrderSystem To Kitchen"
+  }, {
+    "source_to_target" : "Kitchen To DiningArea"
+  } ]
+}
+
+Build a Smart Restaurant with Online Orders.

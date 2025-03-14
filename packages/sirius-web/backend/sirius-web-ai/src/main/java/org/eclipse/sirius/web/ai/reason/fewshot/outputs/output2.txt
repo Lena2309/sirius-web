@@ -1,0 +1,16 @@
+To represent an International Space Station with functional modules and communication capabilities using the provided domain concepts, we can create the following structure:
+
+1. **Create** a SpaceStation named "ISS".
+    - Create two Module instances as children of "ISS", named "LivingQuarters" and "ScienceLab".
+    - Create a SolarPanel instance as a child of "ISS", named "MainSolarArray".
+    - Create a CommunicationAntenna instance as a child of "ISS", named "StationAntenna".
+
+2. **Create** a CommunicationAntenna instance named "GroundStation".
+
+3. Create the following links:
+    - from "GroundStation" to "LivingQuarters"
+    - from "GroundStation" to "ScienceLab"
+    - from "LivingQuarters" to "ScienceLab"
+
+This representation ensures that the International Space Station has essential modules, power through solar panels, and a communication link with Earth.
+Each object should have relevant property values to represent a functional space station.
