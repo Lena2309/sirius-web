@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import static dev.langchain4j.model.anthropic.AnthropicChatModelName.CLAUDE_3_HAIKU_20240307;
 import static dev.langchain4j.model.mistralai.MistralAiChatModelName.MISTRAL_LARGE_LATEST;
@@ -44,26 +45,29 @@ public class AiModelsConfiguration {
         };
     }
 
-    private static double getTemperature(String propertyTemperature, double defaultTemperature) {
-        return propertyTemperature == null ? defaultTemperature : Double.parseDouble(propertyTemperature);
-    }
-
     private static String getModelName(String propertyModelName, String defaultModelName) {
-        return propertyModelName == null ? defaultModelName : propertyModelName;
+        if (propertyModelName == null) {
+            return defaultModelName;
+        }
+        return propertyModelName;
     }
 
-    public static ChatLanguageModel buildChatModel(ModelType type) {
-        logger.warn("Building chat language model for {}", type);
-        var agentProperty = System.getProperty(type.name().toLowerCase() + "-agent");
-        var modelNameProperty = System.getProperty(type.name().toLowerCase() + "-model-name");
-        var temperatureProperty = System.getProperty(type.name().toLowerCase() + "-model-temperature");
+    public static Optional<ChatLanguageModel> buildChatModel(ModelType type) {
+        String agentProperty;
+        String modelNameProperty;
+        if (type == ModelType.REASON) {
+            agentProperty = System.getProperty("reason-agent");
+            modelNameProperty = System.getProperty("reason-agent-model-name");
+        } else {
+            agentProperty = System.getProperty("tooling-agent");
+            modelNameProperty = System.getProperty("tooling-agent-model-name");
+        }
 
-        return agentProperty != null ? createChatModel(agentProperty, modelNameProperty, temperatureProperty, getDefaultTemperature(type)) : null;
+        return Optional.ofNullable(agentProperty).map(it -> createChatModel(it, modelNameProperty, getDefaultTemperature(type)));
     }
 
-    private static ChatLanguageModel createChatModel(String agent, String modelNameProp, String tempProp, double defaultTemp) {
+    private static ChatLanguageModel createChatModel(String agent, String modelNameProp, double temperature) {
         var modelName = getModelName(modelNameProp, getDefaultModel(agent));
-        var temperature = getTemperature(tempProp, defaultTemp);
 
         return switch (agent) {
             case "mistral-ai" -> MistralAiChatModel.builder()
