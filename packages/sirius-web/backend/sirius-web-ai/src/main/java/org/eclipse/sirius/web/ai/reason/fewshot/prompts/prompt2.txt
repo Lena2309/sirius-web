@@ -1,0 +1,26 @@
+Considering the following domain, Build an International Space Station with communication capabilities.
+{
+  "possible_root_objects" : [ {
+    "name" : "SpaceStation",
+    "possible_children" : [ {
+      "name" : "Module",
+      "possible_children" : [ ]
+    }, {
+      "name" : "SolarPanel",
+      "possible_children" : [ ]
+    }, {
+      "name" : "CommunicationAntenna",
+      "possible_children" : [ ]
+    } ]
+  }, {
+    "name" : "CommunicationAntenna",
+    "possible_children" : [ ]
+  } ],
+  "possible_links" : [ {
+    "source_to_target" : "CommunicationAntenna To Module"
+  }, {
+    "source_to_target" : "Module To Module"
+  } ]
+}
+
+Build an International Space Station with communication capabilities.
