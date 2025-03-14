@@ -28,15 +28,12 @@ import java.util.concurrent.atomic.AtomicReference;
 public class LinkCreationTools implements AiTool {
     private final EditingContextEventProcessorRegistry editingContextEventProcessorRegistry;
 
-    private final GetConnectorToolsEventHandler getConnectorToolsEventHandler;
-
     private final AiToolService aiToolService;
 
     public LinkCreationTools(@Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
                              GetConnectorToolsEventHandler getConnectorToolsEventHandler,
                              AiToolService aiToolService) {
         this.editingContextEventProcessorRegistry = Objects.requireNonNull(editingContextEventProcessorRegistry);
-        this.getConnectorToolsEventHandler = Objects.requireNonNull(getConnectorToolsEventHandler);
         this.aiToolService = Objects.requireNonNull(aiToolService);
     }
 
@@ -98,9 +95,9 @@ public class LinkCreationTools implements AiTool {
         return linkOperations;
     }
 
-    @Tool("Call this tool when  sure that linking two objects together is absolutely impossible. If there is a way to link them, this tool should not be called.")
+    @Tool("Call this tool when linking two objects together is absolutely impossible in any way, shape or form. If there is a way to link them (even indirectly), this tool should not be called.")
     public AgentResult unableToLink(@P("The id of the source object.") String sourceObjectId, @P("The id of the target object.") String targetObjectId) {
-        return new AgentResult("unableToLink", "Not able to link object " + sourceObjectId + " to " + targetObjectId);
+        return new AgentResult("unableToLink", "Not able to link object " + sourceObjectId + " to " + targetObjectId + ". Try something else.");
     }
 
     // ---------------------------------------------------------------------------------------------------------------
