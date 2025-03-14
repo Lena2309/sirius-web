@@ -44,10 +44,15 @@ public class ObjectEditionTools implements AiTool {
     // ---------------------------------------------------------------------------------------------------------------
 
     @Tool("Retrieve a Map of an existing object properties structured as {property label, [property value options]} OR {property label, property current value}")
-    public Map<String, Map<String, Object>> getAvailableObjectProperties(String objectId) {
+    public Map<String, Map<String, Object>> getAvailableObjectProperties(@P("The object's Id to edit.") String objectId) {
         var form = this.editionToolService.getFormForObject(objectId, true);
 
         return this.editionToolService.getProperties(form);
+    }
+
+    @Tool("Call this tool when editing an object's property is absolutely impossible in any way, shape or form. If there is a property that could be similar try editing it and do not call this tool.")
+    public AgentResult unableToEditProperty(@P("The object's Id to edit.") String objectId, String propertyLabel) {
+        return new AgentResult("unableToEditProperty", "The property "+propertyLabel+" of "+objectId+" either does not exist or is not modifiable. Try something else.");
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -55,7 +60,7 @@ public class ObjectEditionTools implements AiTool {
     // ---------------------------------------------------------------------------------------------------------------
 
     @Tool("Edit the value of an existing object's single valued property.")
-    public AgentResult editObjectSingleValueProperty(String objectId, String propertyLabel, String newPropertyValue) {
+    public AgentResult editObjectSingleValueProperty(@P("The object's Id to edit.") String objectId, @P("The (existing) property to edit.") String propertyLabel, @P("The new value.") String newPropertyValue) {
         UUID decompressedObjectId;
 
         try {
@@ -70,11 +75,15 @@ public class ObjectEditionTools implements AiTool {
 
         var widget = this.editionToolService.getWidget(objectId, propertyLabel, true);
 
-        return new AgentResult("editObjectSingleValueProperty", this.editionToolService.changePropertySingleValue(newPropertyValue, widget, representationId, this.editingContextEventProcessorRegistry));
+        if (widget.isEmpty()) {
+            return new AgentResult("editObjectSingleValueProperty", "Property "+propertyLabel+" of "+objectId+" does not exist.");
+        }
+
+        return new AgentResult("editObjectSingleValueProperty", this.editionToolService.changePropertySingleValue(newPropertyValue, widget.get(), representationId, this.editingContextEventProcessorRegistry));
     }
 
     @Tool("Edit the values of an existing object's multiple valued property.")
-    public AgentResult editObjectMultipleValueProperty(String objectId, String propertyLabel, List<String> newPropertyValues) {
+    public AgentResult editObjectMultipleValueProperty(@P("The object's Id to edit.") String objectId, @P("The (existing) property to edit.") String propertyLabel, @P("The new values.") List<String> newPropertyValues) {
         UUID decompressedObjectId;
 
         try {
@@ -89,6 +98,10 @@ public class ObjectEditionTools implements AiTool {
 
         var widget = this.editionToolService.getWidget(objectId, propertyLabel, true);
 
-        return new AgentResult("editObjectMultipleValueProperty", this.editionToolService.changePropertyMultipleValue(newPropertyValues, widget, representationId, this.editingContextEventProcessorRegistry));
+        if (widget.isEmpty()) {
+            return new AgentResult("editObjectSingleValueProperty", "Property "+propertyLabel+" of "+objectId+" does not exist.");
+        }
+
+        return new AgentResult("editObjectMultipleValueProperty", this.editionToolService.changePropertyMultipleValue(newPropertyValues, widget.get(), representationId, this.editingContextEventProcessorRegistry));
     }
 }
