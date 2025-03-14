@@ -32,7 +32,7 @@ public class ToolCallService {
     //                                                    ORCHESTRATOR
     // ---------------------------------------------------------------------------------------------------------------
 
-    public static void computeToolCalls(Logger logger, ChatLanguageModel model, ChatRequest chatRequest, List<Agent> agents, ThreadPoolTaskExecutor taskExecutor, BlockingRateLimiter rateLimiter) {
+    public static void computeToolCalls(Logger logger, ChatLanguageModel model, ChatRequest chatRequest, List<Agent> agents, List<AiTool> tools, List<AgentResult> toolResults, ThreadPoolTaskExecutor taskExecutor, BlockingRateLimiter rateLimiter) {
         var latch = new AtomicReference<>(new CountDownLatch(0));
         var agentsOutputs = new ArrayList<ToolExecutionResultMessage>();
 
@@ -50,6 +50,14 @@ public class ToolCallService {
 
             for (var toolExecutionRequest : response.toolExecutionRequests()) {
                 tryToolAgentExecution(logger, agents, toolExecutionRequest, agentsOutputs, taskExecutor, latch);
+
+                if (!tools.isEmpty()) {
+                    var toolExecutionResultMessage = tryAiToolExecution(logger, tools, toolExecutionRequest, toolResults);
+                    if (!Objects.equals(toolExecutionResultMessage.text(), "Tool Execution is not for available tools.")) {
+                        logger.info("tool execution result : {}", toolExecutionResultMessage.text());
+                        chatRequest.messages().add(toolExecutionResultMessage);
+                    }
+                }
             }
 
             try {
@@ -123,9 +131,7 @@ public class ToolCallService {
 
             for (var toolExecutionRequest : response.toolExecutionRequests()) {
                 var toolExecutionResultMessage = tryAiToolExecution(logger, aiTools, toolExecutionRequest, toolResults);
-
                 logger.info("tool execution result : {}", toolExecutionResultMessage.text());
-
                 chatRequest.messages().add(toolExecutionResultMessage);
             }
 
@@ -146,7 +152,7 @@ public class ToolCallService {
     // ---------------------------------------------------------------------------------------------------------------
 
     private static ToolExecutionResultMessage tryAiToolExecution(Logger logger, List<AiTool> aiTools, ToolExecutionRequest toolExecutionRequest, List<AgentResult> toolResult) {
-        var toolExecutionResult = ToolExecutionResultMessage.from(toolExecutionRequest, "A problem occurred. Try again.");
+        var toolExecutionResult = ToolExecutionResultMessage.from(toolExecutionRequest, "Tool Execution is not for available tools.");
         for (AiTool aiTool : aiTools) {
             try {
                 var methodInvoker = instanciateMethodInvoker(aiTool, toolExecutionRequest);
@@ -166,6 +172,7 @@ public class ToolCallService {
                     return ToolExecutionResultMessage.from(toolExecutionRequest, unsupported.getMessage());
                 } else if (!(e instanceof NoSuchMethodException)){
                     logger.error(e.getMessage(), e);
+                    return ToolExecutionResultMessage.from(toolExecutionRequest, e.getMessage());
                 }
             }
         }
