@@ -8,7 +8,7 @@ import dev.langchain4j.model.chat.request.ChatRequestParameters;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
 import org.eclipse.sirius.web.ai.agent.Agent;
 import org.eclipse.sirius.web.ai.agent.diagram.*;
-import org.eclipse.sirius.web.ai.agent.reason.ReasonAgent;
+import org.eclipse.sirius.web.ai.reason.PromptInterpreter;
 import org.eclipse.sirius.web.ai.dto.AiRequestInput;
 import org.eclipse.sirius.web.ai.service.ToolCallService;
 import org.eclipse.sirius.components.core.api.IInput;
@@ -30,39 +30,32 @@ public class OrchestratorAgent implements Agent {
 
     private final ChatLanguageModel model;
 
-    private final ReasonAgent reasonAgent;
+    private final PromptInterpreter promptInterpreter;
 
     private final DeletionAgent deletionAgent;
 
     private final ObjectCreationAgent objectCreationAgent;
 
-    private final ObjectEditionAgent objectEditionAgent;
-
     private final LinkCreationAgent linkCreationAgent;
-
-    private final LinkEditionAgent linkEditionAgent;
 
     private final ThreadPoolTaskExecutor taskExecutor;
 
-    public OrchestratorAgent(ReasonAgent reasonAgent, DeletionAgent deletionAgent,
-                             ObjectCreationAgent objectCreationAgent, ObjectEditionAgent objectEditionAgent,
-                             LinkCreationAgent linkCreationAgent, LinkEditionAgent linkEditionAgent,
+    public OrchestratorAgent(PromptInterpreter promptInterpreter, DeletionAgent deletionAgent,
+                             ObjectCreationAgent objectCreationAgent, LinkCreationAgent linkCreationAgent,
                              @Qualifier("threadPoolTaskExecutor") ThreadPoolTaskExecutor taskExecutor) {
-        this.model = AiModelsConfiguration.buildChatModel(ORCHESTRATION);
-        this.reasonAgent = Objects.requireNonNull(reasonAgent);
+        this.model = AiModelsConfiguration.buildChatModel(ORCHESTRATION).get();
+        this.promptInterpreter = Objects.requireNonNull(promptInterpreter);
         this.deletionAgent = Objects.requireNonNull(deletionAgent);
         this.objectCreationAgent = Objects.requireNonNull(objectCreationAgent);
-        this.objectEditionAgent = Objects.requireNonNull(objectEditionAgent);
         this.linkCreationAgent = Objects.requireNonNull(linkCreationAgent);
-        this.linkEditionAgent = Objects.requireNonNull(linkEditionAgent);
         this.taskExecutor = Objects.requireNonNull(taskExecutor);
     }
 
     public void compute(IInput input) {
         if (input instanceof AiRequestInput aiRequestInput) {
             var rateLimiter = AiModelsConfiguration.getRateLimiter(this.model);
-            var specifications = new ArrayList<>(initializeSpecifications(List.of(this.objectCreationAgent, this.deletionAgent, this.objectEditionAgent, this.linkCreationAgent), aiRequestInput, List.of()));
-            this.reasonAgent.setInput(aiRequestInput);
+            var specifications = new ArrayList<>(initializeSpecifications(List.of(this.deletionAgent, this.objectCreationAgent, this.linkCreationAgent), aiRequestInput, List.of()));
+            this.promptInterpreter.setInput(aiRequestInput);
 
             var systemMessage = new SystemMessage("""
                     You are an orchestrating agent for Diagram Generation.
@@ -78,7 +71,7 @@ public class OrchestratorAgent implements Agent {
                     The batches must be separate, but you can make multiple tool calls at the time per batches.
                     """);
 
-            var concepts = this.reasonAgent.think(aiRequestInput.prompt());
+            var concepts = this.promptInterpreter.think(aiRequestInput.prompt());
 
             var chatRequest = ChatRequest.builder()
                     .messages(List.of(systemMessage, new UserMessage(concepts)))
@@ -87,7 +80,7 @@ public class OrchestratorAgent implements Agent {
                             .build())
                     .build();
 
-            ToolCallService.computeToolCalls(logger, this.model, chatRequest, List.of( this.deletionAgent, this.objectCreationAgent, this.linkCreationAgent, this.objectEditionAgent, this.linkEditionAgent), this.taskExecutor, rateLimiter);
+            ToolCallService.computeToolCalls(logger, this.model, chatRequest, List.of(this.deletionAgent, this.objectCreationAgent, this.linkCreationAgent), List.of(), List.of(), this.taskExecutor, rateLimiter);
 
             AiModelsConfiguration.executionDone();
         }
