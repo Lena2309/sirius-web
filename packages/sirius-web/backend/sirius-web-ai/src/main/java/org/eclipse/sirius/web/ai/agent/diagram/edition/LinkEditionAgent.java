@@ -1,4 +1,4 @@
-package org.eclipse.sirius.web.ai.agent.diagram;
+package org.eclipse.sirius.web.ai.agent.diagram.edition;
 
 import dev.langchain4j.agent.tool.P;
 import dev.langchain4j.agent.tool.Tool;
@@ -7,11 +7,12 @@ import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.ChatRequestParameters;
+import org.eclipse.sirius.web.ai.agent.diagram.DiagramAgent;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
 import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.ToolCallService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
-import org.eclipse.sirius.web.ai.tool.edition.ObjectEditionTools;
+import org.eclipse.sirius.web.ai.tool.edition.LinkEditionTools;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,8 +24,8 @@ import java.util.List;
 import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.EDITION;
 
 @Service
-public class ObjectEditionAgent implements DiagramAgent {
-    private static final Logger logger = LoggerFactory.getLogger(ObjectEditionAgent.class);
+public class LinkEditionAgent implements DiagramAgent {
+    private static final Logger logger = LoggerFactory.getLogger(LinkEditionAgent.class);
 
     private final ChatLanguageModel model;
 
@@ -32,9 +33,9 @@ public class ObjectEditionAgent implements DiagramAgent {
 
     private IInput input;
 
-    public ObjectEditionAgent(ObjectEditionTools objectEditionTools) {
-        this.model = AiModelsConfiguration.buildChatModel(EDITION);
-        this.toolClasses.add(objectEditionTools);
+    public LinkEditionAgent(LinkEditionTools linkEditionTools) {
+        this.model = AiModelsConfiguration.buildChatModel(EDITION).get();
+        this.toolClasses.add(linkEditionTools);
     }
 
     @Override
@@ -49,21 +50,21 @@ public class ObjectEditionAgent implements DiagramAgent {
         }
     }
 
-    @Tool("Edit an object's properties.")
-    public String editObjectProperties(@P("Explain what properties to modify with their new values.") String prompt, @P("The object id to edit, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String objectId) {
+    @Tool("Edit a link's properties.")
+    public String editLinkProperties(@P("Explain what properties to modify with their new values.") String prompt, @P("The link id to edit, the id is in a format similar to \"AbcdEF+GhijKLM1NOpqrS==\".") String linkId) {
         var rateLimiter = AiModelsConfiguration.getRateLimiter(this.model);
         var specifications = new ArrayList<>(initializeSpecifications(List.of(), this.input, this.toolClasses));
         this.setToolsInput();
 
         var systemMessage = new SystemMessage("""
-            You are an assistant for Diagram Object Edition.
+            You are an assistant for Diagram Link Edition.
             Do not write any text, just call the correct tools to edit the correct diagram element given in the user's request.
-            Do not hallucinate, do not invent properties and pay attention to their types.
+            Do not hallucinate.
             """
         );
 
         var chatRequest = ChatRequest.builder()
-                .messages(List.of(systemMessage, new UserMessage("Here is the object to edit: " + objectId + ". " + prompt)))
+                .messages(List.of(systemMessage, new UserMessage("Here is the link to edit: " + linkId + ". " + prompt)))
                 .parameters(ChatRequestParameters.builder()
                         .toolSpecifications(specifications)
                         .build())
