@@ -182,15 +182,12 @@ public class EditionToolService {
         return properties;
     }
 
-    AbstractWidget getWidget(String objectId, String propertyLabel, boolean isObject) {
+    Optional<AbstractWidget> getWidget(String objectId, String propertyLabel, boolean isObject) {
         var form = this.getFormForObject(objectId, isObject);
 
-        var optionalWidget = form.getPages().get(0).getGroups().get(0).getWidgets().stream()
+        return form.getPages().get(0).getGroups().get(0).getWidgets().stream()
                 .filter(abstractWidget -> Objects.equals(abstractWidget.getLabel(), propertyLabel))
                 .findFirst();
-
-        assert optionalWidget.isPresent();
-        return optionalWidget.get();
     }
 
 
