@@ -67,7 +67,6 @@ public class OrchestratorAgent implements Agent {
                     Call the tools in batches:
                         1. Object Creations and Deletions
                         2. Link Creations and Deletions
-                        3. Object and Link Editions
                     The batches must be separate, but you can make multiple tool calls at the time per batches.
                     """);
 
