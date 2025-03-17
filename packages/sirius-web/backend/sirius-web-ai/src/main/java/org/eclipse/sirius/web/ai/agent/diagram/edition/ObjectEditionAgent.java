@@ -59,6 +59,7 @@ public class ObjectEditionAgent implements DiagramAgent {
         var systemMessage = new SystemMessage("""
             You are an assistant for Diagram Object Edition.
             Do not write any text, just call the correct tools to edit the correct diagram element given in the user's request.
+            Before trying to edit a property, you have to verify that it exists in the first place, then choose the most appropriate to edit.
             Do not hallucinate, do not invent properties and pay attention to their types.
             """
         );
