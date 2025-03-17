@@ -172,7 +172,7 @@ public class ToolCallService {
                     return ToolExecutionResultMessage.from(toolExecutionRequest, unsupported.getMessage());
                 } else if (!(e instanceof NoSuchMethodException)){
                     logger.error(e.getMessage(), e);
-                    return ToolExecutionResultMessage.from(toolExecutionRequest, e.getMessage());
+                    return ToolExecutionResultMessage.from(toolExecutionRequest, "Exception caught: "+ e.getMessage());
                 }
             }
         }
