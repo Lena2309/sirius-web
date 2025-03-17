@@ -70,6 +70,7 @@ public class ObjectCreationAgent implements DiagramAgent {
         var systemMessage = new SystemMessage("""
             You are an assistant for Object Diagram Generation.
             Do not write any text, just call the correct tools to create the correct diagram elements listed in the user's request.
+            You have to respect the tool signature.
             Do not hallucinate.
             """
         );
