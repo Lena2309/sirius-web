@@ -8,11 +8,16 @@ public class JsonObject {
     @JsonProperty("name")
     private final String name;
 
+    @JsonProperty("description")
+    private final String description;
+
     @JsonProperty("possible_children")
     private final List<JsonObject> children;
 
-    public JsonObject(String name, List<JsonObject> children) {
+
+    public JsonObject(String name, String description, List<JsonObject> children) {
         this.name = name;
+        this.description = description;
         this.children = children;
     }
 }
