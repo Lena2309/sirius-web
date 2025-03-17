@@ -1,4 +1,4 @@
-package org.eclipse.sirius.web.ai.tool.context;
+package org.eclipse.sirius.web.ai.reason.context;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,7 +35,7 @@ public class BuildContextTool implements AiTool {
         this.aiToolService.setInput(input);
     }
 
-    protected record Pair(String objectType, List<String> supertypes) {}
+    protected record DiagramObject(String objectType, String description, List<String> supertypes) {}
 
     // ---------------------------------------------------------------------------------------------------------------
     //                                                DIAGRAM DESCRIPTION GETTER
@@ -97,25 +97,25 @@ public class BuildContextTool implements AiTool {
         // Retrieve the EClasses of the domain
         var packageRegistry = ((EditingContext) aiToolService.getEditingContext()).getDomain().getResourceSet().getPackageRegistry();
         var firstDomain = packageRegistry.values().stream().findFirst();
-        var pairList = firstDomain.filter(EPackage.class::isInstance)
+        var diagramObjectsList = firstDomain.filter(EPackage.class::isInstance)
                 .map(EPackage.class::cast)
                 .map(ep -> ep.getEClassifiers().stream()
                         .filter(EClass.class::isInstance)
                         .map(EClass.class::cast)
                         .filter(Predicate.not(EClass::isAbstract))
                         .filter(ec -> !ec.getESuperTypes().isEmpty())
-                        .map(ec -> new Pair(ec.getName(), ec.getESuperTypes().stream().map(EClass::getName).toList()))
+                        .map(ec -> new DiagramObject(ec.getName(), ec.getEAnnotations().toString(), ec.getESuperTypes().stream().map(EClass::getName).toList()))
                         .toList())
                 .orElse(List.of());
 
-        rootObjects.forEach(object -> {
-            jsonRootObjects.add(new JsonObject(object, writeRecursiveChildren(object, childrenMapping, objectTypeToNodeDescription, idToObjectType, pairList, 0)));
-        });
+        rootObjects.forEach(object ->
+            jsonRootObjects.add(new JsonObject(object, getDescription(object, diagramObjectsList), writeRecursiveChildren(object, childrenMapping, objectTypeToNodeDescription, idToObjectType, diagramObjectsList, 0)))
+        );
 
         return jsonRootObjects;
     }
 
-    private static List<JsonObject> writeRecursiveChildren(String parent, Map<String, List<String>> childrenMapping, Map<String, NodeDescription> objectTypeToNodeDescription, Map<String, String> idToObjectType, List<Pair> pairs, int depth) {
+    private static List<JsonObject> writeRecursiveChildren(String parent, Map<String, List<String>> childrenMapping, Map<String, NodeDescription> objectTypeToNodeDescription, Map<String, String> idToObjectType, List<DiagramObject> diagramObjectsList, int depth) {
         var children = new ArrayList<JsonObject>();
 
         // TODO: vraiment pas idéal et peut être source d'hallucinations plus tard
@@ -124,13 +124,13 @@ public class BuildContextTool implements AiTool {
                 if (childrenMapping.containsKey(objectType)) {
                     for (var child : childrenMapping.get(objectType)) {
                         if (childrenMapping.containsKey(child)) {
-                            children.add(new JsonObject(child, writeRecursiveChildren(child, childrenMapping, objectTypeToNodeDescription, idToObjectType, pairs, depth + 1)));
+                            children.add(new JsonObject(child, getDescription(child, diagramObjectsList), writeRecursiveChildren(child, childrenMapping, objectTypeToNodeDescription, idToObjectType, diagramObjectsList, depth + 1)));
                         } else {
-                            children.add(new JsonObject(child, retrieveRecursiveChildren(child, childrenMapping, objectTypeToNodeDescription, idToObjectType, pairs, depth + 1)));
+                            children.add(new JsonObject(child, getDescription(child, diagramObjectsList), retrieveRecursiveChildren(child, childrenMapping, objectTypeToNodeDescription, idToObjectType, diagramObjectsList, depth + 1)));
                         }
                     }
                 } else {
-                    children.addAll(retrieveRecursiveChildren(objectType, childrenMapping, objectTypeToNodeDescription, idToObjectType, pairs, depth));
+                    children.addAll(retrieveRecursiveChildren(objectType, childrenMapping, objectTypeToNodeDescription, idToObjectType, diagramObjectsList, depth));
                 }
                 break;
             }
@@ -138,10 +138,10 @@ public class BuildContextTool implements AiTool {
 
         if (depth < 5) {
             // inherit children of supertypes
-            for (var pair : pairs) {
-                if (pair.objectType.equals(parent)) {
-                    for (var supertype : pair.supertypes) {
-                        children.addAll(writeRecursiveChildren(supertype, childrenMapping, objectTypeToNodeDescription, idToObjectType, pairs, depth + 1));
+            for (var diagramObject : diagramObjectsList) {
+                if (diagramObject.objectType.equals(parent)) {
+                    for (var supertype : diagramObject.supertypes) {
+                        children.addAll(writeRecursiveChildren(supertype, childrenMapping, objectTypeToNodeDescription, idToObjectType, diagramObjectsList, depth + 1));
                     }
                     break;
                 }
@@ -151,7 +151,17 @@ public class BuildContextTool implements AiTool {
         return children;
     }
 
-    private static List<JsonObject> retrieveRecursiveChildren(String objectType, Map<String, List<String>> childrenMapping, Map<String, NodeDescription> objectTypeToNodeDescription, Map<String, String> idToObjectType, List<Pair> pairs, int depth) {
+    private static String getDescription(String objectType, List<DiagramObject> diagramObjectsList) {
+        String description = "";
+        for (var diagramObject : diagramObjectsList) {
+            if (diagramObject.objectType.equals(objectType)) {
+                description = diagramObject.description;
+            }
+        }
+        return description;
+    }
+
+    private static List<JsonObject> retrieveRecursiveChildren(String objectType, Map<String, List<String>> childrenMapping, Map<String, NodeDescription> objectTypeToNodeDescription, Map<String, String> idToObjectType, List<DiagramObject> diagramObjectsList, int depth) {
         var children = new ArrayList<JsonObject>();
 
         if (objectTypeToNodeDescription.containsKey(objectType)) {
@@ -163,7 +173,7 @@ public class BuildContextTool implements AiTool {
                     var childType = idToObjectType.get(childId);
                     if ((childType != null) && (depth < 5)) {
                         childrenTypes.add(childType);
-                        children.add(new JsonObject(childType, writeRecursiveChildren(childType, childrenMapping, objectTypeToNodeDescription, idToObjectType, pairs, depth + 1)));
+                        children.add(new JsonObject(childType, getDescription(childType, diagramObjectsList), writeRecursiveChildren(childType, childrenMapping, objectTypeToNodeDescription, idToObjectType, diagramObjectsList, depth + 1)));
                     }
                 }
                 childrenMapping.put(objectType, childrenTypes);
