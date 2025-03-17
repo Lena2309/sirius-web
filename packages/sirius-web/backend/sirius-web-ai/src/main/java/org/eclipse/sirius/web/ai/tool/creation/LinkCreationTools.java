@@ -151,6 +151,6 @@ public class LinkCreationTools implements AiTool {
             return new AgentResult("linkObjects", "Failed to create new Link.");
         }
 
-        return new AgentResult("linkObjects", "Link linking" + sourceObjectId + " and " + targetObjectId + " created with id : " + UUIDConverter.compress(newLinkId) + ".");
+        return new AgentResult("linkObjects", "Link linking" + sourceObjectId + " and " + targetObjectId + " created with id : " + UUIDConverter.compress(newLinkId));
     }
 }

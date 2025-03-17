@@ -134,7 +134,7 @@ public class ObjectCreationTools implements AiTool {
             return new AgentResult("createObjectAtRoot", "Failed to create new Object.");
         }
 
-        return new AgentResult("createObjectAtRoot", objectType + " created at root with id : " + UUIDConverter.compress(newObjectId) + ".");
+        return new AgentResult("createObjectAtRoot", objectType + " created at root with id : " + UUIDConverter.compress(newObjectId));
     }
 
     @Tool("Perform the creation operation. Returns the new child's id. The id should not be modified.")
@@ -166,7 +166,7 @@ public class ObjectCreationTools implements AiTool {
             return new AgentResult("createChild", "Failed to create new Child.");
         }
 
-        return new AgentResult("createChild", childType + ", child of " + parentId + ", created with id : " + UUIDConverter.compress(newObjectId) + ".");
+        return new AgentResult("createChild", childType + ", child of " + parentId + ", created with id : " + UUIDConverter.compress(newObjectId));
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -184,6 +184,10 @@ public class ObjectCreationTools implements AiTool {
         }
 
         var node = this.aiToolService.findNode(decompressedObjectId.toString());
+
+        if (node == null) {
+            return "Object was not found";
+        }
 
         String labelId;
 
