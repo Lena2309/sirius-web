@@ -10,7 +10,7 @@ import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.request.ChatRequestParameters;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
-import org.eclipse.sirius.web.ai.tool.context.BuildContextTool;
+import org.eclipse.sirius.web.ai.reason.context.BuildContextTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
