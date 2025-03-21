@@ -11,18 +11,11 @@ import java.util.Collection;
 import java.util.List;
 
 public interface Agent {
-    default Collection<ToolSpecification> initializeSpecifications(List<Agent> agents, IInput input, List<AiTool> toolClasses) {
-        var specifications = new ArrayList<ToolSpecification>();
+    default void initializeSpecifications(List<Agent> agents, IInput input) {
         for (var agent : agents) {
             if (agent instanceof DiagramAgent diagramAgent) {
                 diagramAgent.setInput(input);
             }
-            specifications.addAll(ToolSpecifications.toolSpecificationsFrom(agent));
         }
-        for (var toolClass : toolClasses) {
-            specifications.addAll(ToolSpecifications.toolSpecificationsFrom(toolClass));
-        }
-
-        return specifications;
     }
 }

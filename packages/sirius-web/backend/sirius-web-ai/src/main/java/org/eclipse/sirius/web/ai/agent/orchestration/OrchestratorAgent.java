@@ -1,10 +1,5 @@
 package org.eclipse.sirius.web.ai.agent.orchestration;
 
-import dev.langchain4j.data.message.SystemMessage;
-import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.chat.request.ChatRequest;
-import dev.langchain4j.model.chat.request.ChatRequestParameters;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
 import org.eclipse.sirius.web.ai.agent.Agent;
 import org.eclipse.sirius.web.ai.agent.diagram.*;
@@ -14,6 +9,13 @@ import org.eclipse.sirius.web.ai.service.ToolCallService;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.memory.InMemoryChatMemory;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
@@ -28,7 +30,7 @@ import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.Mode
 public class OrchestratorAgent implements Agent {
     private final Logger logger = LoggerFactory.getLogger(OrchestratorAgent.class);
 
-    private final ChatLanguageModel model;
+    private final ChatModel model;
 
     private final PromptInterpreter promptInterpreter;
 
@@ -53,8 +55,7 @@ public class OrchestratorAgent implements Agent {
 
     public void compute(IInput input) {
         if (input instanceof AiRequestInput aiRequestInput) {
-            var rateLimiter = AiModelsConfiguration.getRateLimiter(this.model);
-            var specifications = new ArrayList<>(initializeSpecifications(List.of(this.deletionAgent, this.objectCreationAgent, this.linkCreationAgent), aiRequestInput, List.of()));
+            initializeSpecifications(List.of(this.deletionAgent, this.objectCreationAgent, this.linkCreationAgent), aiRequestInput);
             this.promptInterpreter.setInput(aiRequestInput);
 
             var systemMessage = new SystemMessage("""
@@ -72,16 +73,20 @@ public class OrchestratorAgent implements Agent {
 
             var concepts = this.promptInterpreter.think(aiRequestInput.prompt());
 
-            var chatRequest = ChatRequest.builder()
-                    .messages(List.of(systemMessage, new UserMessage(concepts)))
-                    .parameters(ChatRequestParameters.builder()
-                            .toolSpecifications(specifications)
-                            .build())
-                    .build();
+            var prompt = new Prompt(systemMessage);
+            prompt.getInstructions().add(new UserMessage(concepts));
 
-            ToolCallService.computeToolCalls(logger, this.model, chatRequest, List.of(this.deletionAgent, this.objectCreationAgent, this.linkCreationAgent), List.of(), List.of(), this.taskExecutor, rateLimiter);
+//        Instant responseStart = Instant.now();
 
-            AiModelsConfiguration.executionDone();
+            var response = ChatClient.builder(this.model)
+                    .build()
+                    .prompt(prompt)
+                    .advisors(new MessageChatMemoryAdvisor(new InMemoryChatMemory()))
+                    .tools(this.deletionAgent, this.objectCreationAgent, this.linkCreationAgent)
+                    .call()
+                    .content();
+
+            logger.info("Prompt response: {}", response);
         }
     }
 }
