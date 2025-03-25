@@ -1,15 +1,19 @@
 package org.eclipse.sirius.web.ai.configuration;
 
-import dev.langchain4j.model.anthropic.AnthropicChatModel;
-import dev.langchain4j.model.chat.ChatLanguageModel;
-import dev.langchain4j.model.mistralai.MistralAiChatModel;
-import dev.langchain4j.model.openai.OpenAiChatModel;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.ai.anthropic.AnthropicChatModel;
+import org.springframework.ai.anthropic.AnthropicChatOptions;
+import org.springframework.ai.anthropic.api.AnthropicApi;
+import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.mistralai.MistralAiChatModel;
+import org.springframework.ai.mistralai.MistralAiChatOptions;
+import org.springframework.ai.mistralai.api.MistralAiApi;
+import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.OpenAiApi;
+import org.springframework.retry.support.RetryTemplate;
 
-import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 import static dev.langchain4j.model.anthropic.AnthropicChatModelName.CLAUDE_3_HAIKU_20240307;
@@ -18,8 +22,6 @@ import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O;
 
 public class AiModelsConfiguration {
     private static final Logger logger = LoggerFactory.getLogger(AiModelsConfiguration.class);
-
-    private static final Map<String, BlockingRateLimiter> rateLimiters = new HashMap<>();
 
     public enum ModelType {
         ORCHESTRATION,
@@ -52,7 +54,7 @@ public class AiModelsConfiguration {
         return propertyModelName;
     }
 
-    public static Optional<ChatLanguageModel> buildChatModel(ModelType type) {
+    public static Optional<ChatModel> buildChatModel(ModelType type) {
         String agentProperty;
         String modelNameProperty;
         if (type == ModelType.REASON) {
@@ -66,58 +68,38 @@ public class AiModelsConfiguration {
         return Optional.ofNullable(agentProperty).map(it -> createChatModel(it, modelNameProperty, getDefaultTemperature(type)));
     }
 
-    private static ChatLanguageModel createChatModel(String agent, String modelNameProp, double temperature) {
+    private static ChatModel createChatModel(String agent, String modelNameProp, double temperature) {
         var modelName = getModelName(modelNameProp, getDefaultModel(agent));
 
         return switch (agent) {
             case "mistral-ai" -> MistralAiChatModel.builder()
-                    .apiKey(System.getProperty("mistral-ai-api-key"))
-                    .modelName(modelName)
-                    .temperature(temperature)
-                    .logRequests(true)
-                    .logResponses(true)
+                    .mistralAiApi(new MistralAiApi(System.getProperty("mistral-ai-api-key")))
+                    .retryTemplate(RetryTemplate.defaultInstance())
+                    .defaultOptions(MistralAiChatOptions.builder()
+                            .model(modelName)
+                            .temperature(temperature)
+                            .build())
                     .build();
             case "open-ai" -> OpenAiChatModel.builder()
-                    .apiKey(System.getProperty("open-ai-api-key"))
-                    .modelName(modelName)
-                    .temperature(temperature)
-                    .logRequests(true)
-                    .logResponses(true)
+                    .openAiApi(OpenAiApi.builder().apiKey(System.getProperty("open-ai-api-key")).build())
+                    .defaultOptions(OpenAiChatOptions.builder()
+                            .model(modelName)
+                            .temperature(temperature)
+                            .build())
                     .build();
+
             case "anthropic" -> AnthropicChatModel.builder()
-                    .apiKey(System.getProperty("anthropic-api-key"))
-                    .modelName(modelName)
-                    .temperature(temperature)
-                    .logRequests(true)
-                    .logResponses(true)
+                    .anthropicApi(new AnthropicApi(System.getProperty("open-ai-api-key")))
+                    .defaultOptions(AnthropicChatOptions.builder()
+                            .model(modelName)
+                            .temperature(temperature)
+                            .build())
                     .build();
+
             default -> {
-                logger.warn("Unsupported or undefined agent: {}", agent);
+                logger.warn("Unsupported or undefined model for agent: {}", agent);
                 yield null;
             }
         };
-    }
-
-    // TODO: add specificities based on model type
-    public static BlockingRateLimiter getRateLimiter(ChatLanguageModel model) {
-        BlockingRateLimiter rateLimiter;
-        if (model instanceof MistralAiChatModel) {
-            if (!rateLimiters.containsKey("mistral")) {
-                rateLimiters.put("mistral", new BlockingRateLimiter(5, Duration.ofSeconds(2)));
-            }
-            rateLimiter = rateLimiters.get("mistral");
-        } else {
-            if (!rateLimiters.containsKey("openai")) {
-                rateLimiters.put("openai", new BlockingRateLimiter(500, Duration.ofMinutes(1)));
-            }
-            rateLimiter = rateLimiters.get("openai");
-        }
-        return rateLimiter;
-    }
-
-    public static void executionDone() {
-        for (var rateLimiter : rateLimiters.values()) {
-            rateLimiter.done();
-        }
     }
 }

@@ -7,7 +7,6 @@ import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.model.chat.ChatLanguageModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import org.eclipse.sirius.web.ai.agent.Agent;
-import org.eclipse.sirius.web.ai.configuration.BlockingRateLimiter;
 import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.slf4j.Logger;
@@ -32,12 +31,10 @@ public class ToolCallService {
     //                                                    ORCHESTRATOR
     // ---------------------------------------------------------------------------------------------------------------
 
-    public static void computeToolCalls(Logger logger, ChatLanguageModel model, ChatRequest chatRequest, List<Agent> agents, List<AiTool> tools, List<AgentResult> toolResults, ThreadPoolTaskExecutor taskExecutor, BlockingRateLimiter rateLimiter) {
+    public static void computeToolCalls(Logger logger, ChatLanguageModel model, ChatRequest chatRequest, List<Agent> agents, List<AiTool> tools, List<AgentResult> toolResults, ThreadPoolTaskExecutor taskExecutor) {
         var latch = new AtomicReference<>(new CountDownLatch(0));
         var agentsOutputs = new ArrayList<ToolExecutionResultMessage>();
 
-        //logger.info("Rate limit is " + rateLimiter.getPermits());
-        rateLimiter.acquire(logger);
         var response = model.chat(chatRequest).aiMessage();
 
         var requestAttributes = RequestContextHolder.getRequestAttributes();
@@ -72,9 +69,6 @@ public class ToolCallService {
                 chatRequest.messages().addAll(agentsOutputs);
                 agentsOutputs.clear();
             }
-
-            //logger.info("Rate limit is " + rateLimiter.getPermits());
-            rateLimiter.acquire(logger);
 
             Instant responseStart = Instant.now();
             response = model.chat(chatRequest).aiMessage();
@@ -120,9 +114,7 @@ public class ToolCallService {
     //                                                      TOOL AGENTS
     // ---------------------------------------------------------------------------------------------------------------
 
-    public static void computeToolCalls(Logger logger, ChatLanguageModel model, ChatRequest chatRequest, List<AiTool> aiTools, List<AgentResult> toolResults, BlockingRateLimiter rateLimiter) {
-        //logger.info("Rate limit is " + rateLimiter.getPermits());
-        rateLimiter.acquire(logger);
+    public static void computeToolCalls(Logger logger, ChatLanguageModel model, ChatRequest chatRequest, List<AiTool> aiTools, List<AgentResult> toolResults) {
         var response = model.chat(chatRequest).aiMessage();
 
         while (response.hasToolExecutionRequests()) {
@@ -134,9 +126,6 @@ public class ToolCallService {
                 logger.info("tool execution result : {}", toolExecutionResultMessage.text());
                 chatRequest.messages().add(toolExecutionResultMessage);
             }
-
-            //logger.info("Rate limit is " + rateLimiter.getPermits());
-            rateLimiter.acquire(logger);
 
             Instant responseStart = Instant.now();
             response = model.chat(chatRequest).aiMessage();

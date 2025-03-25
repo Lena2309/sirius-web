@@ -1,15 +1,12 @@
 package org.eclipse.sirius.web.ai.tool.edition;
 
-import dev.langchain4j.agent.tool.P;
-import dev.langchain4j.agent.tool.Tool;
-import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.AiToolService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.util.UUIDConverter;
-import org.eclipse.sirius.components.collaborative.diagrams.dto.EditLabelInput;
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.core.api.IInput;
-import org.eclipse.sirius.components.diagrams.OutsideLabel;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 
@@ -43,24 +40,24 @@ public class ObjectEditionTools implements AiTool {
     //                                                  GET OBJECT PROPERTIES
     // ---------------------------------------------------------------------------------------------------------------
 
-    @Tool("Retrieve a Map of an existing object properties structured as {property label, [property value options]} OR {property label, property current value}")
-    public Map<String, Map<String, Object>> getAvailableObjectProperties(@P("The object's Id to edit.") String objectId) {
+    @Tool(description = "Retrieve a Map of an existing object properties structured as {property label, [property value options]} OR {property label, property current value}")
+    public Map<String, Map<String, Object>> getAvailableObjectProperties(@ToolParam(description = "The object's Id to edit.") String objectId) {
         var form = this.editionToolService.getFormForObject(objectId, true);
 
         return this.editionToolService.getProperties(form);
     }
 
-    @Tool("Call this tool when editing an object's property is absolutely impossible in any way, shape or form. If there is a property that could be similar try editing it and do not call this tool.")
-    public AgentResult unableToEditProperty(@P("The object's Id to edit.") String objectId, String propertyLabel) {
-        return new AgentResult("unableToEditProperty", "The property "+propertyLabel+" of "+objectId+" either does not exist or is not modifiable. Try something else.");
+    @Tool(description = "Call this tool when editing an object's property is absolutely impossible in any way, shape or form. If there is a property that could be similar try editing it and do not call this tool.")
+    public String unableToEditProperty(@ToolParam(description = "The object's Id to edit.") String objectId, String propertyLabel) {
+        return "The property "+propertyLabel+" of "+objectId+" either does not exist or is not modifiable. Try something else.";
     }
 
     // ---------------------------------------------------------------------------------------------------------------
     //                                                  EDIT OBJECT PROPERTIES
     // ---------------------------------------------------------------------------------------------------------------
 
-    @Tool("Edit the value of an existing object's single valued property.")
-    public AgentResult editObjectSingleValueProperty(@P("The object's Id to edit.") String objectId, @P("The (existing) property to edit.") String propertyLabel, @P("The new value.") String newPropertyValue) {
+    @Tool(description = "Edit the value of an existing object's single valued property.")
+    public String editObjectSingleValueProperty(@ToolParam(description = "The object's Id to edit.") String objectId, @ToolParam(description = "The (existing) property to edit.") String propertyLabel, @ToolParam(description = "The new value.") String newPropertyValue) {
         UUID decompressedObjectId;
 
         try {
@@ -76,14 +73,14 @@ public class ObjectEditionTools implements AiTool {
         var widget = this.editionToolService.getWidget(objectId, propertyLabel, true);
 
         if (widget.isEmpty()) {
-            return new AgentResult("editObjectSingleValueProperty", "Property "+propertyLabel+" of "+objectId+" does not exist.");
+            return "Property "+propertyLabel+" of "+objectId+" does not exist.";
         }
 
-        return new AgentResult("editObjectSingleValueProperty", this.editionToolService.changePropertySingleValue(newPropertyValue, widget.get(), representationId, this.editingContextEventProcessorRegistry));
+        return this.editionToolService.changePropertySingleValue(newPropertyValue, widget.get(), representationId, this.editingContextEventProcessorRegistry);
     }
 
-    @Tool("Edit the values of an existing object's multiple valued property.")
-    public AgentResult editObjectMultipleValueProperty(@P("The object's Id to edit.") String objectId, @P("The (existing) property to edit.") String propertyLabel, @P("The new values.") List<String> newPropertyValues) {
+    @Tool(description = "Edit the values of an existing object's multiple valued property.")
+    public String editObjectMultipleValueProperty(@ToolParam(description = "The object's Id to edit.") String objectId, @ToolParam(description = "The (existing) property to edit.") String propertyLabel, @ToolParam(description = "The new values.") List<String> newPropertyValues) {
         UUID decompressedObjectId;
 
         try {
@@ -99,9 +96,9 @@ public class ObjectEditionTools implements AiTool {
         var widget = this.editionToolService.getWidget(objectId, propertyLabel, true);
 
         if (widget.isEmpty()) {
-            return new AgentResult("editObjectSingleValueProperty", "Property "+propertyLabel+" of "+objectId+" does not exist.");
+            return "Property "+propertyLabel+" of "+objectId+" does not exist.";
         }
 
-        return new AgentResult("editObjectMultipleValueProperty", this.editionToolService.changePropertyMultipleValue(newPropertyValues, widget.get(), representationId, this.editingContextEventProcessorRegistry));
+        return this.editionToolService.changePropertyMultipleValue(newPropertyValues, widget.get(), representationId, this.editingContextEventProcessorRegistry);
     }
 }

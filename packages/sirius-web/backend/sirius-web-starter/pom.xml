@@ -47,12 +47,12 @@
 		<dependency>
 			<groupId>org.eclipse.sirius</groupId>
 			<artifactId>sirius-web-ai</artifactId>
-			<version>2025.2.2</version>
+			<version>2025.2.4</version>
 		</dependency>
 		<dependency>
 			<groupId>org.eclipse.sirius</groupId>
 			<artifactId>sirius-web-infrastructure</artifactId>
-			<version>2025.2.2</version>
+			<version>2025.2.4</version>
 		</dependency>
 		<dependency>
 			<groupId>org.eclipse.sirius</groupId>
@@ -275,7 +275,7 @@
 		<dependency>
 			<groupId>org.eclipse.sirius</groupId>
 			<artifactId>sirius-web-domain</artifactId>
-			<version>2025.2.2</version>
+			<version>2025.2.4</version>
 			<scope>compile</scope>
 		</dependency>
 	</dependencies>

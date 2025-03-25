@@ -1,8 +1,5 @@
 package org.eclipse.sirius.web.ai.tool.creation;
 
-import dev.langchain4j.agent.tool.P;
-import dev.langchain4j.agent.tool.Tool;
-import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.AiToolService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.util.PairDiagramElement;
@@ -14,6 +11,8 @@ import org.eclipse.sirius.components.collaborative.diagrams.handlers.GetConnecto
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.components.core.api.IPayload;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -30,6 +29,8 @@ public class LinkCreationTools implements AiTool {
 
     private final AiToolService aiToolService;
 
+    private final List<String> linkIds = new ArrayList<>();
+
     public LinkCreationTools(@Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
                              GetConnectorToolsEventHandler getConnectorToolsEventHandler,
                              AiToolService aiToolService) {
@@ -42,12 +43,16 @@ public class LinkCreationTools implements AiTool {
         this.aiToolService.setInput(input);
     }
 
+    public List<String> getLinkIds() {
+        return linkIds;
+    }
+
     // ---------------------------------------------------------------------------------------------------------------
     //                                                CREATION LINK TOOL GETTER
     // ---------------------------------------------------------------------------------------------------------------
 
-    @Tool("Retrieve a list of available operations for linking objects together, structured as {link name, operation id}. Links can be directed, if there are no available operations, try switching source and target. This does not create the link.")
-    public List<PairDiagramElement> getAvailableLinkOperations(@P("The object id that will serve as source.") String sourceObjectId, @P("The object id that will serve as target.") String targetObjectId) {
+    @Tool(description = "Retrieve a list of available operations for linking objects together, structured as {link name, operation id}. Links can be directed, if there are no available operations, try switching source and target. This does not create the link.")
+    public List<PairDiagramElement> getAvailableLinkOperations(@ToolParam(description = "The object id that will serve as source.") String sourceObjectId, @ToolParam(description = "The object id that will serve as target.") String targetObjectId) {
         UUID decompressedSourceId;
         UUID decompressedTargetId;
 
@@ -95,17 +100,17 @@ public class LinkCreationTools implements AiTool {
         return linkOperations;
     }
 
-    @Tool("Call this tool when linking two objects together is absolutely impossible in any way, shape or form. If there is a way to link them (even indirectly), this tool should not be called.")
-    public AgentResult unableToLink(@P("The id of the source object.") String sourceObjectId, @P("The id of the target object.") String targetObjectId) {
-        return new AgentResult("unableToLink", "Not able to link object " + sourceObjectId + " to " + targetObjectId + ". Try something else.");
+    @Tool(description = "Call this tool when linking two objects together is absolutely impossible in any way, shape or form. If there is a way to link them (even indirectly), this tool should not be called.")
+    public String unableToLink(@ToolParam(description = "The id of the source object.") String sourceObjectId, @ToolParam(description = "The id of the target object.") String targetObjectId) {
+        return "Not able to link object " + sourceObjectId + " to " + targetObjectId + ". Try something else.";
     }
 
     // ---------------------------------------------------------------------------------------------------------------
     //                                                  TOOL EXECUTIONER
     // ---------------------------------------------------------------------------------------------------------------
 
-    @Tool("Perform the linking operation, thus creates a new link. Returns the new link's id.")
-    public AgentResult linkObjects(@P("The id of the operation to perform.") String linkOperationId, @P("The id of the source object.") String sourceObjectId, @P("The id of the target object.") String targetObjectId) {
+    @Tool(description = "Perform the linking operation, thus creates a new link. Returns the new link's id.")
+    public String linkObjects(@ToolParam(description = "The id of the operation to perform.") String linkOperationId, @ToolParam(description = "The id of the source object.") String sourceObjectId, @ToolParam(description = "The id of the target object.") String targetObjectId) {
         UUID decompressedOperationId;
         UUID decompressedSourceId;
         UUID decompressedTargetId;
@@ -148,9 +153,12 @@ public class LinkCreationTools implements AiTool {
         }
 
         if (newLinkId == null) {
-            return new AgentResult("linkObjects", "Failed to create new Link.");
+            return "Failed to create new Link.";
         }
 
-        return new AgentResult("linkObjects", "Link linking" + sourceObjectId + " and " + targetObjectId + " created with id : " + UUIDConverter.compress(newLinkId));
+        var result = "Link linking" + sourceObjectId + " and " + targetObjectId + " created with id : " + UUIDConverter.compress(newLinkId);
+        this.linkIds.add(result);
+
+        return result;
     }
 }

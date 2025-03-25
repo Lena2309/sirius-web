@@ -1,18 +1,17 @@
 package org.eclipse.sirius.web.ai.tool.deletion;
 
-import dev.langchain4j.agent.tool.P;
-import dev.langchain4j.agent.tool.Tool;
+
 import org.eclipse.sirius.components.core.api.IPayload;
 import org.eclipse.sirius.components.core.api.SuccessPayload;
-import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.AiToolService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.util.UUIDConverter;
 import org.eclipse.sirius.components.collaborative.diagrams.dto.DeleteFromDiagramInput;
 import org.eclipse.sirius.components.collaborative.diagrams.dto.DeletionPolicy;
-import org.eclipse.sirius.components.collaborative.diagrams.handlers.GetConnectorToolsEventHandler;
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.core.api.IInput;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -43,8 +42,8 @@ public class ObjectDeletionTools implements AiTool {
     //                                                  TOOL EXECUTIONER
     // ---------------------------------------------------------------------------------------------------------------
 
-    @Tool("Delete the object from the diagram.")
-    public AgentResult deleteObject(@P("The id of the object to delete.") String objectId) {
+    @Tool(description = "Delete the object from the diagram.")
+    public String deleteObject(@ToolParam(description = "The id of the object to delete.") String objectId) {
         UUID decompressedObjectId;
 
         try {
@@ -75,6 +74,6 @@ public class ObjectDeletionTools implements AiTool {
             }
         });
 
-        return new AgentResult("deleteObject", output.get());
+        return output.get();
     }
 }

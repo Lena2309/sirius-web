@@ -1,9 +1,6 @@
 package org.eclipse.sirius.web.ai.tool.creation;
 
-import dev.langchain4j.agent.tool.P;
-import dev.langchain4j.agent.tool.Tool;
 import org.eclipse.sirius.components.collaborative.diagrams.dto.*;
-import org.eclipse.sirius.web.ai.dto.AgentResult;
 import org.eclipse.sirius.web.ai.service.AiToolService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.util.PairDiagramElement;
@@ -11,6 +8,8 @@ import org.eclipse.sirius.web.ai.util.UUIDConverter;
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.components.core.api.IPayload;
+import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
@@ -28,6 +27,8 @@ public class ObjectCreationTools implements AiTool {
 
     private final AiToolService aiToolService;
 
+    private final List<String> objectIds = new ArrayList<>();
+
     public ObjectCreationTools(@Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
                                AiToolService aiToolService) {
         this.editingContextEventProcessorRegistry = Objects.requireNonNull(editingContextEventProcessorRegistry);
@@ -39,11 +40,15 @@ public class ObjectCreationTools implements AiTool {
         this.aiToolService.setInput(input);
     }
 
+    public List<String> getObjectIds() {
+        return objectIds;
+    }
+
     // ---------------------------------------------------------------------------------------------------------------
     //                                          OBJECT CREATION OPERATION GETTERS
     // ---------------------------------------------------------------------------------------------------------------
 
-    @Tool("Retrieve the list of available creation operations at root structured as {type of the object to create, operation id}")
+    @Tool(description = "Retrieve the list of available creation operations at root structured as {type of the object to create, operation id}")
     public List<PairDiagramElement> getAvailableRootObjectCreationOperations() {
         var paletteInput = new GetPaletteInput(
                 UUID.randomUUID(),
@@ -55,8 +60,8 @@ public class ObjectCreationTools implements AiTool {
         return getCreationTools(paletteInput);
     }
 
-    @Tool("Retrieve the list of available child creation operations structured as {type of the child to create, operation id}")
-    public List<PairDiagramElement> getAvailableChildCreationOperations(@P("The parent id.") String parentId) {
+    @Tool(description = "Retrieve the list of available child creation operations structured as {type of the child to create, operation id}")
+    public List<PairDiagramElement> getAvailableChildCreationOperations(@ToolParam(description = "The parent id.") String parentId) {
         UUID parentIdConverted;
         try {
             parentIdConverted = UUIDConverter.decompress(parentId);
@@ -107,8 +112,8 @@ public class ObjectCreationTools implements AiTool {
     //                                                  OPERATION EXECUTIONER
     // ---------------------------------------------------------------------------------------------------------------
 
-    @Tool("Perform the creation operation at root. Returns the new object's id. The id should not be modified.")
-    public AgentResult createObjectAtRoot(@P("The id of the operation to execute.") String operationId, @P("The type of the object to create.") String objectType) {
+    @Tool(description = "Perform the creation operation at root. Returns the new object's id. The id should not be modified.")
+    public String createObjectAtRoot(@ToolParam(description = "The id of the operation to execute.") String operationId, @ToolParam(description = "The type of the object to create.") String objectType) {
         UUID decompressedOperationId;
 
         try {
@@ -131,14 +136,17 @@ public class ObjectCreationTools implements AiTool {
         var newObjectId = this.aiToolService.createNewNode(this.editingContextEventProcessorRegistry, diagramInput, diagramInput.editingContextId(), null);
 
         if (newObjectId == null) {
-            return new AgentResult("createObjectAtRoot", "Failed to create new Object.");
+            return "Failed to create new Object.";
         }
 
-        return new AgentResult("createObjectAtRoot", objectType + " created at root with id : " + UUIDConverter.compress(newObjectId));
+        var result = objectType + " created at root with id : " + UUIDConverter.compress(newObjectId);
+        this.objectIds.add(result);
+
+        return result;
     }
 
-    @Tool("Perform the creation operation. Returns the new child's id. The id should not be modified.")
-    public AgentResult createChild(@P("The parent's id.") String parentId, @P("The type of the child.") String childType, @P("The id of the operation to perform.") String operationId) {
+    @Tool(description = "Perform the creation operation. Returns the new child's id. The id should not be modified.")
+    public String createChild(@ToolParam(description = "The parent's id.") String parentId, @ToolParam(description = "The type of the child.") String childType, @ToolParam(description = "The id of the operation to perform.") String operationId) {
         UUID decompressedOperationId;
         UUID decompressedParentId;
 
@@ -163,18 +171,21 @@ public class ObjectCreationTools implements AiTool {
         var newObjectId = this.aiToolService.createNewNode(this.editingContextEventProcessorRegistry, diagramInput, diagramInput.editingContextId(), parentId);
 
         if (newObjectId == null) {
-            return new AgentResult("createChild", "Failed to create new Child.");
+            return "Failed to create new Child.";
         }
 
-        return new AgentResult("createChild", childType + ", child of " + parentId + ", created with id : " + UUIDConverter.compress(newObjectId));
+        var result = childType + ", child of " + parentId + ", created with id : " + UUIDConverter.compress(newObjectId);
+        this.objectIds.add(result);
+
+        return result;
     }
 
     // ---------------------------------------------------------------------------------------------------------------
     //                                                  RENAME OBJECT
     // ---------------------------------------------------------------------------------------------------------------
 
-    @Tool("rename an existing object.")
-    public String renameObject(@P("The object's Id to rename.") String objectId, String newName) {
+    @Tool(description = "rename an existing object.")
+    public String renameObject(@ToolParam(description = "The object's Id to rename.") String objectId, String newName) {
         UUID decompressedObjectId;
 
         try {
