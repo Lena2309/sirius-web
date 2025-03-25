@@ -16,12 +16,17 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.io.support.ResourcePatternUtils;
 import org.springframework.stereotype.Service;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 @Service
@@ -72,14 +77,7 @@ public class PromptInterpreter {
 
         prompt.getInstructions().add(new UserMessage("Considering the following domain, "+userPrompt+": \n"+context+"\n"+userPrompt));
 
-//        Instant responseStart = Instant.now();
-
         var response = chatClient.prompt(prompt).call().content();
-
-//        Instant responseFinish = Instant.now();
-
-//        long responseDuration = Duration.between(responseStart, responseFinish).toMillis();
-//        logger.debug("Reason answered in {} ms", responseDuration);
 
         logger.info(response);
         return response;
@@ -87,22 +85,54 @@ public class PromptInterpreter {
 
     private void loadFewShotExamples(Prompt prompt) {
         try {
-            var prompts = ResourcePatternUtils.getResourcePatternResolver(resourceLoader)
-                    .getResources("classpath*:prompts/**");
-            var outputs = ResourcePatternUtils.getResourcePatternResolver(resourceLoader)
-                    .getResources("classpath*:outputs/**");
+            var promptsFolder = new ClassPathResource("fewshot/prompts/");
+            var outputsFolder = new ClassPathResource("fewshot/outputs/");
 
-            if (prompts.length != outputs.length) {
+            var promptFiles = listResourceFiles(promptsFolder);
+            var outputFiles = listResourceFiles(outputsFolder);
+
+            if (promptFiles.size() != outputFiles.size()) {
                 throw new IOException("Different amount of prompts and answers for few-shot learning step.");
             }
 
-            for (int i = 0; i < prompts.length; i++) {
-                prompt.getInstructions().add(new UserMessage(prompts[i].getContentAsString(Charset.defaultCharset())));
-                prompt.getInstructions().add(new AssistantMessage(outputs[i].getContentAsString(Charset.defaultCharset())));
+            for (int i = 0; i < promptFiles.size(); i++) {
+                var promptText = readResourceAsString(promptsFolder.getPath() + promptFiles.get(i));
+                var outputText = readResourceAsString(outputsFolder.getPath() + outputFiles.get(i));
+
+                prompt.getInstructions().add(new UserMessage(promptText));
+                prompt.getInstructions().add(new AssistantMessage(outputText));
             }
 
         } catch (Exception e) {
             logger.error("Error while loading few-shot learning: {}", e.getMessage());
         }
     }
+
+    private List<String> listResourceFiles(ClassPathResource path) {
+        var filenames = new ArrayList<String>();
+        try {
+            var stream = path.getInputStream();
+            try {
+                var reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8));
+                String file;
+                while ((file = reader.readLine()) != null) {
+                    filenames.add(file);
+                }
+            } catch (Exception e) {
+                logger.error("Error while reading file: {}", e.getMessage());
+            }
+        } catch (Exception e) {
+            logger.error(e.getMessage());
+        }
+        return filenames;
+    }
+
+    private String readResourceAsString(String resourcePath) throws IOException {
+        var inputStream = getClass().getClassLoader().getResourceAsStream(resourcePath);
+        if (inputStream == null) {
+            throw new IOException("Cannot read resource file: " + resourcePath);
+        }
+        return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+    }
+
 }
