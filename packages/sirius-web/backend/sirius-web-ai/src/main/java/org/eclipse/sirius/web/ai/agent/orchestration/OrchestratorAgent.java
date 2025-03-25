@@ -5,14 +5,12 @@ import org.eclipse.sirius.web.ai.agent.Agent;
 import org.eclipse.sirius.web.ai.agent.diagram.*;
 import org.eclipse.sirius.web.ai.reason.PromptInterpreter;
 import org.eclipse.sirius.web.ai.dto.AiRequestInput;
-import org.eclipse.sirius.web.ai.service.ToolCallService;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
-import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
@@ -21,8 +19,6 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 

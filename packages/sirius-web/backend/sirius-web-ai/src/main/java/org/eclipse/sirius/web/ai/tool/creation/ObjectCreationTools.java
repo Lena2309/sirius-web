@@ -41,7 +41,11 @@ public class ObjectCreationTools implements AiTool {
     }
 
     public List<String> getObjectIds() {
-        return objectIds;
+        return this.objectIds;
+    }
+
+    public void clearObjectIds() {
+        this.objectIds.clear();
     }
 
     // ---------------------------------------------------------------------------------------------------------------

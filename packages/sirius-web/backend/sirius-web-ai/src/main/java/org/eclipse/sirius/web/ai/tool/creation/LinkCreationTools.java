@@ -47,6 +47,10 @@ public class LinkCreationTools implements AiTool {
         return linkIds;
     }
 
+    public void clearLinkIds() {
+        this.linkIds.clear();
+    }
+
     // ---------------------------------------------------------------------------------------------------------------
     //                                                CREATION LINK TOOL GETTER
     // ---------------------------------------------------------------------------------------------------------------

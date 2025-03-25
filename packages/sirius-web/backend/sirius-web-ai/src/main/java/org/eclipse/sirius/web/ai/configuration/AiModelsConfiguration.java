@@ -16,10 +16,6 @@ import org.springframework.retry.support.RetryTemplate;
 
 import java.util.Optional;
 
-import static dev.langchain4j.model.anthropic.AnthropicChatModelName.CLAUDE_3_HAIKU_20240307;
-import static dev.langchain4j.model.mistralai.MistralAiChatModelName.MISTRAL_LARGE_LATEST;
-import static dev.langchain4j.model.openai.OpenAiChatModelName.GPT_4_O;
-
 public class AiModelsConfiguration {
     private static final Logger logger = LoggerFactory.getLogger(AiModelsConfiguration.class);
 
@@ -32,9 +28,9 @@ public class AiModelsConfiguration {
 
     private static String getDefaultModel(String agent) {
         return switch (agent) {
-            case "mistral-ai" -> String.valueOf(MISTRAL_LARGE_LATEST);
-            case "open-ai" -> String.valueOf(GPT_4_O);
-            case "anthropic" -> String.valueOf(CLAUDE_3_HAIKU_20240307);
+            case "mistral-ai" -> "mistral-large-latest";
+            case "open-ai" -> "gpt-4o";
+            case "anthropic" -> "claude-3-haiku-20240307";
             default -> "";
         };
     }

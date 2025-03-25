@@ -64,6 +64,7 @@ public class LinkCreationAgent implements DiagramAgent {
 
     @Tool(description ="Links two objects together.")
     public String linkObjects(@ToolParam(description ="Explain what should be linked and why. Mention special properties if necessary.") String orchestratorPrompt, @ToolParam(description ="The source object id.") String sourceObjectId, @ToolParam(description = "The target object id.") String targetObjectId) throws UnsupportedOperationException {
+        this.linkCreationTools.clearLinkIds();
         initializeSpecifications(List.of(this.linkEditionAgent), this.input);
         this.setToolsInput();
 
@@ -82,7 +83,7 @@ public class LinkCreationAgent implements DiagramAgent {
 
         var prompt = new Prompt(systemMessage, new UserMessage("Here is the source diagram object id: " + sourceObjectId + " and here is the target object id: " + targetObjectId + ". " + orchestratorPrompt));
 
-        var response = chatClient.prompt(prompt).tools(linkEditionAgent, linkCreationTools).call().content();
+        chatClient.prompt(prompt).tools(linkEditionAgent, linkCreationTools).call();
         return this.linkCreationTools.getLinkIds().toString();
     }
 }
