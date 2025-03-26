@@ -78,7 +78,7 @@ public class LinkCreationTools implements AiTool {
         var connectorInput = new GetConnectorToolsInput(
                 UUID.randomUUID(),
                 this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
+                this.aiToolService.getDiagramId(),
                 sourceNode.getId(),
                 targetNode.getId()
         );
@@ -105,8 +105,8 @@ public class LinkCreationTools implements AiTool {
     }
 
     @Tool(description = "Call this tool when linking two objects together is absolutely impossible in any way, shape or form. If there is a way to link them (even indirectly), this tool should not be called.")
-    public String unableToLink(@ToolParam(description = "The id of the source object.") String sourceObjectId, @ToolParam(description = "The id of the target object.") String targetObjectId) {
-        return "Not able to link object " + sourceObjectId + " to " + targetObjectId + ". Try something else.";
+    public void unableToLink(@ToolParam(description = "The id of the source object.") String sourceObjectId, @ToolParam(description = "The id of the target object.") String targetObjectId) {
+        this.linkIds.add("Not able to link object " + sourceObjectId + " to " + targetObjectId + ". Try something else.");
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -130,7 +130,7 @@ public class LinkCreationTools implements AiTool {
         var diagramInput = new InvokeSingleClickOnTwoDiagramElementsToolInput(
                 UUID.randomUUID(),
                 this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
+                this.aiToolService.getDiagramId(),
                 decompressedSourceId.toString(),
                 decompressedTargetId.toString(),
                 0.0,
@@ -160,7 +160,7 @@ public class LinkCreationTools implements AiTool {
             return "Failed to create new Link.";
         }
 
-        var result = "Link linking" + sourceObjectId + " and " + targetObjectId + " created with id : " + UUIDConverter.compress(newLinkId);
+        var result = "Link linking " + sourceObjectId + " and " + targetObjectId + " created with id: " + UUIDConverter.compress(newLinkId);
         this.linkIds.add(result);
 
         return result;

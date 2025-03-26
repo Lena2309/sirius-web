@@ -37,9 +37,9 @@ public class AiModelsConfiguration {
 
     private static double getDefaultTemperature(ModelType type) {
         return switch (type) {
-            case REASON -> 0.5;
-            case DIAGRAM -> 0.3;
-            case ORCHESTRATION, EDITION -> 0.4;
+            case REASON, EDITION -> 0.5;
+            //case DIAGRAM -> 0.3;
+            case DIAGRAM, ORCHESTRATION -> 0.4;
         };
     }
 

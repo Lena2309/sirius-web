@@ -8,6 +8,8 @@ import org.eclipse.sirius.web.ai.util.UUIDConverter;
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.components.core.api.IPayload;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.context.annotation.Lazy;
@@ -23,6 +25,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class ObjectCreationTools implements AiTool {
+    private static Logger logger = LoggerFactory.getLogger(ObjectCreationTools.class);
+
     private final EditingContextEventProcessorRegistry editingContextEventProcessorRegistry;
 
     private final AiToolService aiToolService;
@@ -57,8 +61,8 @@ public class ObjectCreationTools implements AiTool {
         var paletteInput = new GetPaletteInput(
                 UUID.randomUUID(),
                 this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
-                this.aiToolService.getRepresentationId()
+                this.aiToolService.getDiagramId(),
+                this.aiToolService.getDiagramId()
         );
 
         return getCreationTools(paletteInput);
@@ -76,7 +80,7 @@ public class ObjectCreationTools implements AiTool {
         var paletteInput = new GetPaletteInput(
                 UUID.randomUUID(),
                 this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
+                this.aiToolService.getDiagramId(),
                 parentIdConverted.toString()
         );
 
@@ -129,8 +133,8 @@ public class ObjectCreationTools implements AiTool {
         var diagramInput = new InvokeSingleClickOnDiagramElementToolInput(
                 UUID.randomUUID(),
                 this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
-                this.aiToolService.getRepresentationId(),
+                this.aiToolService.getDiagramId(),
+                this.aiToolService.getDiagramId(),
                 decompressedOperationId.toString(),
                 0.0,
                 0.0,
@@ -164,7 +168,7 @@ public class ObjectCreationTools implements AiTool {
         var diagramInput = new InvokeSingleClickOnDiagramElementToolInput(
                 UUID.randomUUID(),
                 this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
+                this.aiToolService.getDiagramId(),
                 decompressedParentId.toString(),
                 decompressedOperationId.toString(),
                 0.0,
@@ -217,7 +221,7 @@ public class ObjectCreationTools implements AiTool {
         var diagramInput = new EditLabelInput(
                 UUID.randomUUID(),
                 this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
+                this.aiToolService.getDiagramId(),
                 labelId,
                 newName
         );

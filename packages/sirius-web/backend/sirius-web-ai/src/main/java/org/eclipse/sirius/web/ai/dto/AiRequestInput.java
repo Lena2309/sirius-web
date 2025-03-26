@@ -4,5 +4,5 @@ import org.eclipse.sirius.components.core.api.IInput;
 
 import java.util.UUID;
 
-public record AiRequestInput(UUID id, String prompt, String editingContextId, String representationId) implements IInput {
+public record AiRequestInput(UUID id, String prompt, String editingContextId, String diagramId) implements IInput {
 }

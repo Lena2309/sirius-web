@@ -38,17 +38,13 @@ public class OrchestratorAgent implements Agent {
 
     private final LinkCreationAgent linkCreationAgent;
 
-    private final ThreadPoolTaskExecutor taskExecutor;
-
     public OrchestratorAgent(PromptInterpreter promptInterpreter, DeletionAgent deletionAgent,
-                             ObjectCreationAgent objectCreationAgent, LinkCreationAgent linkCreationAgent,
-                             @Qualifier("threadPoolTaskExecutor") ThreadPoolTaskExecutor taskExecutor) {
+                             ObjectCreationAgent objectCreationAgent, LinkCreationAgent linkCreationAgent) {
         this.model = AiModelsConfiguration.buildChatModel(ORCHESTRATION).get();
         this.promptInterpreter = Objects.requireNonNull(promptInterpreter);
         this.deletionAgent = Objects.requireNonNull(deletionAgent);
         this.objectCreationAgent = Objects.requireNonNull(objectCreationAgent);
         this.linkCreationAgent = Objects.requireNonNull(linkCreationAgent);
-        this.taskExecutor = Objects.requireNonNull(taskExecutor);
     }
 
     public void compute(IInput input) {
@@ -59,21 +55,19 @@ public class OrchestratorAgent implements Agent {
             var systemMessage = new SystemMessage("""
                     You are an orchestrating agent for Diagram Generation.
                     From the user prompt and the list of concepts computed from it, call the correct tools to create or edit a diagram.
-                    You are encouraged to call multiple tools at the same time, since they are parallelized.
+                    You must call tools.
                     Start with the creation and deletion of objects. Once done, continue with the linking and edition of objects.
                     Do not hallucinate.
                     
                     Call the tools in batches:
                         1. Object Creations and Deletions
                         2. Link Creations and Deletions
-                    The batches must be separate, but you can make multiple tool calls at the time per batches.
+                    The batches must be separate, but you can make multiple tool calls at the same time per batches.
                     """);
 
             var concepts = this.promptInterpreter.think(aiRequestInput.prompt());
 
             var prompt = new Prompt(systemMessage, new UserMessage(concepts));
-
-//        Instant responseStart = Instant.now();
 
             var response = ChatClient.builder(this.model)
                     .build()

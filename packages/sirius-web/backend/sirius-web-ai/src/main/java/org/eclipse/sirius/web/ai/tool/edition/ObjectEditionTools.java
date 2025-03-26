@@ -5,6 +5,8 @@ import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.util.UUIDConverter;
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.core.api.IInput;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.context.annotation.Lazy;
@@ -17,6 +19,7 @@ import java.util.UUID;
 
 @Service
 public class ObjectEditionTools implements AiTool {
+    private final static Logger logger = LoggerFactory.getLogger(ObjectEditionTools.class);
     private final EditingContextEventProcessorRegistry editingContextEventProcessorRegistry;
 
     private final AiToolService aiToolService;
@@ -44,7 +47,9 @@ public class ObjectEditionTools implements AiTool {
     public Map<String, Map<String, Object>> getAvailableObjectProperties(@ToolParam(description = "The object's Id to edit.") String objectId) {
         var form = this.editionToolService.getFormForObject(objectId, true);
 
-        return this.editionToolService.getProperties(form);
+        var prop = this.editionToolService.getProperties(form);
+        logger.info("Retrieved available properties for {}: {}", objectId, prop);
+        return prop;
     }
 
     @Tool(description = "Call this tool when editing an object's property is absolutely impossible in any way, shape or form. If there is a property that could be similar try editing it and do not call this tool.")
@@ -58,6 +63,7 @@ public class ObjectEditionTools implements AiTool {
 
     @Tool(description = "Edit the value of an existing object's single valued property.")
     public String editObjectSingleValueProperty(@ToolParam(description = "The object's Id to edit.") String objectId, @ToolParam(description = "The (existing) property to edit.") String propertyLabel, @ToolParam(description = "The new value.") String newPropertyValue) {
+        logger.info("Edit the property {} of {} to {}", propertyLabel, objectId, newPropertyValue);
         UUID decompressedObjectId;
 
         try {
@@ -81,6 +87,7 @@ public class ObjectEditionTools implements AiTool {
 
     @Tool(description = "Edit the values of an existing object's multiple valued property.")
     public String editObjectMultipleValueProperty(@ToolParam(description = "The object's Id to edit.") String objectId, @ToolParam(description = "The (existing) property to edit.") String propertyLabel, @ToolParam(description = "The new values.") List<String> newPropertyValues) {
+        logger.info("Edit the property {} of {} to {}", propertyLabel, objectId, newPropertyValues);
         UUID decompressedObjectId;
 
         try {

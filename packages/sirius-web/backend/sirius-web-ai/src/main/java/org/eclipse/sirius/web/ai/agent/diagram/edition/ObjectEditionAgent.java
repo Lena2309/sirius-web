@@ -54,14 +54,17 @@ public class ObjectEditionAgent implements DiagramAgent {
     }
 
     @Tool(description = "Edit an object's properties.")
-    public void editObjectProperties(@ToolParam(description = "Explain what properties to modify with their new values.") String orchestratorPrompt, @ToolParam(description = "The object id to edit.") String objectId) {
+    public void editObjectProperties(@ToolParam(description = "Explain what properties to modify with their new values. Explain why this change is necessary and it represents.") String instructionPrompt, @ToolParam(description = "The object id to edit.") String objectId) {
+        logger.info("Edit the properties of {} to \"{}\"", objectId, instructionPrompt);
         this.setToolsInput();
 
         var systemMessage = new SystemMessage("""
             You are an assistant for Diagram Object Edition.
             Do not write any text, just call the correct tools to edit the correct diagram element given in the user's request.
             Before trying to edit a property, you have to verify that it exists in the first place, then choose the most appropriate to edit.
-            Do not hallucinate, do not invent properties and pay attention to their types.
+            If the user wants to edit a property that does not exist, find the closest one that could match and edit it accordingly.
+            You can take liberties but do not invent properties and pay attention to their type.
+            Do not hallucinate.
             """
         );
 
@@ -69,8 +72,8 @@ public class ObjectEditionAgent implements DiagramAgent {
                 .defaultAdvisors(new MessageChatMemoryAdvisor(new InMemoryChatMemory()))
                 .build();
 
-        var prompt = new Prompt(systemMessage, new UserMessage("Here is the object to edit: " + objectId + ". " + orchestratorPrompt));
+        var prompt = new Prompt(systemMessage, new UserMessage("Here is the object to edit: " + objectId + ". " + instructionPrompt));
 
-        chatClient.prompt(prompt).tools(objectEditionTools).call();
+        chatClient.prompt(prompt).tools(objectEditionTools).call().content();
     }
 }

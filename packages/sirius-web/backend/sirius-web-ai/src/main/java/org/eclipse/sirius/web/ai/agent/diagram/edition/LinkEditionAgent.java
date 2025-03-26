@@ -3,6 +3,7 @@ package org.eclipse.sirius.web.ai.agent.diagram.edition;
 
 import org.eclipse.sirius.web.ai.agent.diagram.DiagramAgent;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
+import org.eclipse.sirius.web.ai.reason.PromptInterpreter;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.tool.edition.LinkEditionTools;
 import org.eclipse.sirius.components.core.api.IInput;
@@ -33,13 +34,15 @@ public class LinkEditionAgent implements DiagramAgent {
     private final List<AiTool> toolClasses = new ArrayList<>();
 
     private final LinkEditionTools linkEditionTools;
+    private final PromptInterpreter promptInterpreter;
 
     private IInput input;
 
-    public LinkEditionAgent(LinkEditionTools linkEditionTools) {
+    public LinkEditionAgent(LinkEditionTools linkEditionTools, PromptInterpreter promptInterpreter) {
         this.model = AiModelsConfiguration.buildChatModel(EDITION).get();
         this.toolClasses.add(linkEditionTools);
         this.linkEditionTools = linkEditionTools;
+        this.promptInterpreter = promptInterpreter;
     }
 
     @Override
@@ -55,7 +58,8 @@ public class LinkEditionAgent implements DiagramAgent {
     }
 
     @Tool(description = "Edit a link's properties.")
-    public void editLinkProperties(@ToolParam(description = "Explain what properties to modify with their new values.") String orchestratorPrompt, @ToolParam(description = "The link id to edit.") String linkId) {
+    public void editLinkProperties(@ToolParam(description = "Explain what properties to modify with their new values and why this change is necessary and what it represents.") String instructionPrompt, @ToolParam(description = "The link id to edit.") String linkId) {
+        logger.info(instructionPrompt);
         initializeSpecifications(List.of(), this.input);
         this.setToolsInput();
 
@@ -63,7 +67,9 @@ public class LinkEditionAgent implements DiagramAgent {
             You are an assistant for Diagram Link Edition.
             Do not write any text, just call the correct tools to edit the correct diagram element given in the user's request.
             Before trying to edit a property, you have to verify that it exists in the first place, then choose the most appropriate to edit.
-            Do not hallucinate, do not invent properties and pay attention to their types.
+            If the user wants to edit a property that does not exist, find the closest one that could match and edit it accordingly.
+            You can take liberties but do not invent properties.
+            Do not hallucinate.
             """
         );
 
@@ -71,8 +77,8 @@ public class LinkEditionAgent implements DiagramAgent {
                 .defaultAdvisors(new MessageChatMemoryAdvisor(new InMemoryChatMemory()))
                 .build();
 
-        var prompt = new Prompt(systemMessage, new UserMessage("Here is the link to edit: " + linkId + ". " + orchestratorPrompt));
+        var prompt = new Prompt(systemMessage, new UserMessage("Here is the link to edit: " + linkId + ". " + instructionPrompt));
 
-        chatClient.prompt(prompt).tools(linkEditionTools).call();
+        chatClient.prompt(prompt).tools(linkEditionTools).call().content();
     }
 }

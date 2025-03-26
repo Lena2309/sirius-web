@@ -74,6 +74,6 @@ public class DeletionAgent implements DiagramAgent {
 
         var prompt = new Prompt(systemMessage, new UserMessage(orchestratorPrompt));
 
-        chatClient.prompt(prompt).tools(objectDeletionTools, linkDeletionTools).call();
+        chatClient.prompt(prompt).tools(objectDeletionTools, linkDeletionTools).call().content();
     }
 }

@@ -47,9 +47,9 @@ public class AiToolService {
         this.input = input;
     }
 
-    public String getRepresentationId() {
+    public String getDiagramId() {
         if (this.input instanceof AiRequestInput aiRequestInput) {
-            return aiRequestInput.representationId();
+            return aiRequestInput.diagramId();
         }
         return null;
     }
@@ -167,7 +167,7 @@ public class AiToolService {
                 this.editingContext = this.getEditingContext();
             }
 
-            var optionalDiagram = this.representationSearchService.findById(this.editingContext, aiRequestInput.representationId(), Diagram.class);
+            var optionalDiagram = this.representationSearchService.findById(this.editingContext, aiRequestInput.diagramId(), Diagram.class);
             optionalDiagram.ifPresent(diagram -> this.diagram = diagram);
         }
     }

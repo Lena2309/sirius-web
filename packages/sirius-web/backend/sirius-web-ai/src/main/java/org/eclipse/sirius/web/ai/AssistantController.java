@@ -24,11 +24,11 @@ public class AssistantController {
         AiRequestInput aiRequestInput = new AiRequestInput(UUID.randomUUID(),
                 request.prompt,
                 request.editingContextID,
-                request.representationId
+                request.diagramId
         );
 
         this.aiRequestEventHandler.handle(Sinks.one(), Sinks.many().unicast().onBackpressureBuffer(), null, aiRequestInput);
     }
 
-    record Request(String prompt, String editingContextID, String representationId) { }
+    record Request(String prompt, String editingContextID, String diagramId) { }
 }

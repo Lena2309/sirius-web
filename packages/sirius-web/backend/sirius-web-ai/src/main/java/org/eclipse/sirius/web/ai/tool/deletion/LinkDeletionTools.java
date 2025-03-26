@@ -54,7 +54,7 @@ public class LinkDeletionTools implements AiTool {
         var deleteInput = new DeleteFromDiagramInput(
                 UUID.randomUUID(),
                 this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
+                this.aiToolService.getDiagramId(),
                 List.of(),
                 List.of(decompressedLinkId.toString()),
                 DeletionPolicy.SEMANTIC

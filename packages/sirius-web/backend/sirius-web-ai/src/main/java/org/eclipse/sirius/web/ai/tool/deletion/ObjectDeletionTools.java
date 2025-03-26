@@ -55,7 +55,7 @@ public class ObjectDeletionTools implements AiTool {
         var deleteInput = new DeleteFromDiagramInput(
                 UUID.randomUUID(),
                 this.aiToolService.getEditingContextId(),
-                this.aiToolService.getRepresentationId(),
+                this.aiToolService.getDiagramId(),
                 List.of(decompressedObjectId.toString()),
                 List.of(),
                 DeletionPolicy.SEMANTIC

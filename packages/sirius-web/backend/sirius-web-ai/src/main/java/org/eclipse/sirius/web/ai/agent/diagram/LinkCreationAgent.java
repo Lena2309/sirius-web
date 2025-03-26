@@ -16,8 +16,6 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -37,15 +35,11 @@ public class LinkCreationAgent implements DiagramAgent {
 
     private final LinkEditionAgent linkEditionAgent;
 
-    private final ThreadPoolTaskExecutor taskExecutor;
-
     private IInput input;
 
-    public LinkCreationAgent(LinkCreationTools linkCreationTools, LinkEditionAgent linkEditionAgent,
-                             @Qualifier("threadPoolTaskExecutor") ThreadPoolTaskExecutor taskExecutor) {
+    public LinkCreationAgent(LinkCreationTools linkCreationTools, LinkEditionAgent linkEditionAgent) {
         this.model = AiModelsConfiguration.buildChatModel(DIAGRAM).get();
         this.linkEditionAgent = linkEditionAgent;
-        this.taskExecutor = taskExecutor;
         this.toolClasses.add(linkCreationTools);
         this.linkCreationTools = linkCreationTools;
     }
@@ -71,9 +65,10 @@ public class LinkCreationAgent implements DiagramAgent {
         var systemMessage = new SystemMessage("""
             You are an assistant for Diagram Object Linking.
             Do not write any text, just call the correct tools to link two diagram objects given in the user's request .
-            Do not hallucinate.
+            You have to respect the tool signature. You must call tools.
             When it is possible to link objects, link them, if possible with the user preferred link.
             If the preferred link is not available, you should still link the objects in the best way possible.
+            Do not hallucinate.
             """
         );
 
@@ -83,7 +78,8 @@ public class LinkCreationAgent implements DiagramAgent {
 
         var prompt = new Prompt(systemMessage, new UserMessage("Here is the source diagram object id: " + sourceObjectId + " and here is the target object id: " + targetObjectId + ". " + orchestratorPrompt));
 
-        chatClient.prompt(prompt).tools(linkEditionAgent, linkCreationTools).call();
+        chatClient.prompt(prompt).tools(linkEditionAgent, linkCreationTools).call().content();
+        logger.info(this.linkCreationTools.getLinkIds().toString());
         return this.linkCreationTools.getLinkIds().toString();
     }
 }

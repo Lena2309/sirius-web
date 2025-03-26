@@ -24,6 +24,8 @@ import org.eclipse.sirius.components.representations.Element;
 import org.eclipse.sirius.components.representations.GetOrCreateRandomIdProvider;
 import org.eclipse.sirius.components.representations.VariableManager;
 import org.eclipse.sirius.web.application.views.details.services.DetailsViewFormDescriptionAggregator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
@@ -34,6 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @Service
 public class EditionToolService {
 
+    private static final Logger log = LoggerFactory.getLogger(EditionToolService.class);
     private final IFormPostProcessor formPostProcessor;
 
     private final List<IWidgetDescriptor> widgetDescriptors;
@@ -80,7 +83,7 @@ public class EditionToolService {
         }
         FormDescription formDescription = optionalFormDescription.orElse(this.propertiesDefaultDescriptionProvider.getFormDescription());
 
-        this.formCreationParameters = FormCreationParameters.newFormCreationParameters(this.aiToolService.getRepresentationId())
+        this.formCreationParameters = FormCreationParameters.newFormCreationParameters(this.aiToolService.getDiagramId())
                 .editingContext(this.aiToolService.getEditingContext())
                 .formDescription(formDescription)
                 .object(object)
@@ -152,27 +155,31 @@ public class EditionToolService {
         var multipleValueProperty = new HashMap<String, Object>();
 
         // TODO: add widget type support
-        for (var widget : form.getPages().get(0).getGroups().get(0).getWidgets()) {
-            if (widget instanceof Radio radio) {
+        for (var page : form.getPages()) {
+            for (var group : page.getGroups()) {
+                for (var widget : group.getWidgets()) {
+                    if (widget instanceof Radio radio) {
 
-                var options = new ArrayList<String>();
-                for (var option : radio.getOptions()) {
-                    options.add(option.getLabel());
+                        var options = new ArrayList<String>();
+                        for (var option : radio.getOptions()) {
+                            options.add(option.getLabel());
+                        }
+
+                        singleValueProperty.put(radio.getLabel(), options);
+
+                    } else if (widget instanceof Textfield textfield) {
+                        singleValueProperty.put(textfield.getLabel(), textfield.getValue());
+
+                    } else if (widget instanceof MultiSelect multiSelect) {
+
+                        var options = new ArrayList<String>();
+                        for (var option : multiSelect.getOptions()) {
+                            options.add(option.getLabel());
+                        }
+
+                        multipleValueProperty.put(multiSelect.getLabel(), options);
+                    }
                 }
-
-                singleValueProperty.put(radio.getLabel(), options);
-
-            } else if (widget instanceof Textfield textfield) {
-                singleValueProperty.put(textfield.getLabel(), textfield.getValue());
-
-            } else if (widget instanceof MultiSelect multiSelect) {
-
-                var options = new ArrayList<String>();
-                for (var option : multiSelect.getOptions()) {
-                    options.add(option.getLabel());
-                }
-
-                multipleValueProperty.put(multiSelect.getLabel(), options);
             }
         }
 
@@ -197,6 +204,7 @@ public class EditionToolService {
 
     String changePropertySingleValue(String newPropertyValue, AbstractWidget widget, StringBuilder representationId, EditingContextEventProcessorRegistry editingContextEventProcessorRegistry) {
         IInput formInput = null;
+
         if (widget instanceof Radio radio) {
             var optionId = radio.getOptions().stream()
                     .filter(option -> option.getLabel().equals(newPropertyValue))
@@ -256,11 +264,13 @@ public class EditionToolService {
         AtomicReference<String> result = new AtomicReference<>("");
         monoPayload.get().subscribe( payload -> {
             if (payload instanceof ErrorPayload) {
-                result.set("Failure");
+                result.set("Failure, try something else. Mind the new value type, maybe only numbers or letters are allowed");
             } else {
                 result.set("Success");
             }
         });
+
+        log.info(result.get());
 
         return result.get();
     }
