@@ -193,7 +193,7 @@
 		<dependency>
 			<groupId>org.eclipse.sirius</groupId>
 			<artifactId>sirius-components-collaborative</artifactId>
-			<version>2025.2.4</version>
+			<version>2025.2.5</version>
 		</dependency>
 	</dependencies>
 
