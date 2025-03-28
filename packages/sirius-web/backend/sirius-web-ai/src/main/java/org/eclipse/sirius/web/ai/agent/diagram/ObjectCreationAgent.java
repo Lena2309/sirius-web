@@ -78,17 +78,10 @@ public class ObjectCreationAgent implements DiagramAgent {
             """
         );
 
-        var prompt = new Prompt(systemMessage, new UserMessage(orchestratorPrompt));
-
-        assert this.model.isPresent();
-        new ToolCallService().computeToolCalls(logger, this.model.get(), prompt, this.executor, this.objectCreationTools, this.objectEditionAgent);
-
-        logger.info(this.objectCreationTools.getObjectIds().toString());
-        return this.objectCreationTools.getObjectIds().toString();
+        return callModel(orchestratorPrompt, systemMessage);
     }
 
-    /*
-    @Tool(description = "Creates one or multiple children in an object. Can edit them and name them. Does not link them. Useless if the parent does not already exists.")
+    @Tool(description = "Creates one or multiple children in an already existing object. Can edit them and name them. Does not link them. Useless if the parent does not already exists.")
     public String createChild(@ToolParam(description = "Explain what child to create within an already existing object and the children it should contain, mention names and special properties and explain they aim to represent. Do not mention links here.") String orchestratorPrompt, @ToolParam(description = "The parent id.") String parentId) {
         logger.info("Creating a child for {}: {}", parentId, orchestratorPrompt);
         this.objectCreationTools.clearObjectIds();
@@ -102,18 +95,16 @@ public class ObjectCreationAgent implements DiagramAgent {
             """+parentId
         );
 
-        assert this.model.isPresent();
-        var chatClient = ChatClient.builder(this.model.get())
-                .defaultAdvisors(new MessageChatMemoryAdvisor(new InMemoryChatMemory()))
-                .build();
+        return callModel(orchestratorPrompt, systemMessage);
+    }
 
+    private String callModel(@ToolParam(description = "Explain what child to create within an already existing object and the children it should contain, mention names and special properties and explain they aim to represent. Do not mention links here.") String orchestratorPrompt, SystemMessage systemMessage) {
         var prompt = new Prompt(systemMessage, new UserMessage(orchestratorPrompt));
 
-        chatClient.prompt(prompt).tools(objectEditionAgent, objectCreationTools).call().content();
+        assert this.model.isPresent();
+        new ToolCallService().computeToolCalls(logger, this.model.get(), prompt, this.executor, this.objectCreationTools, this.objectEditionAgent);
+
         logger.info(this.objectCreationTools.getObjectIds().toString());
         return this.objectCreationTools.getObjectIds().toString();
     }
-
-     */
-
 }
