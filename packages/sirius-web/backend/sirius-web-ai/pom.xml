@@ -108,12 +108,7 @@
 
 
         <!--> Sirius Web dependencies <-->
-        <dependency>
-            <groupId>org.eclipse.sirius</groupId>
-            <artifactId>sirius-components-core</artifactId>
-            <version>${sirius.web.version}</version>
-            <scope>compile</scope>
-        </dependency>
+
         <dependency>
             <groupId>org.eclipse.sirius</groupId>
             <artifactId>sirius-components-collaborative</artifactId>
@@ -191,6 +186,12 @@
         <dependency>
             <groupId>io.projectreactor</groupId>
             <artifactId>reactor-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.eclipse.sirius</groupId>
+            <artifactId>sirius-components-core</artifactId>
+            <version>2025.2.5</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
     <build>

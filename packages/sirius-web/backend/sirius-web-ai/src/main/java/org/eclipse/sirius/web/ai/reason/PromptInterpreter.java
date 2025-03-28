@@ -1,8 +1,5 @@
 package org.eclipse.sirius.web.ai.reason;
 
-import org.springframework.ai.chat.messages.AssistantMessage;
-import org.springframework.ai.chat.messages.Message;
-import org.springframework.ai.chat.messages.SystemMessage;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
 import org.eclipse.sirius.web.ai.reason.context.BuildContextTool;
@@ -10,48 +7,46 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.memory.InMemoryChatMemory;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.core.io.support.ResourcePatternUtils;
 import org.springframework.stereotype.Service;
 
 import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+
+import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.REASON;
 
 @Service
 public class PromptInterpreter {
 
     private final Logger logger = LoggerFactory.getLogger(PromptInterpreter.class);
 
-    private final ChatModel model;
+    private final Optional<ChatModel> model;
 
     private final BuildContextTool buildContextTool;
 
-    private final ResourceLoader resourceLoader;
-
     public PromptInterpreter(BuildContextTool buildContextTool, ResourceLoader resourceLoader) {
-        this.model = AiModelsConfiguration.buildChatModel(AiModelsConfiguration.ModelType.REASON).get();
+        this.model = AiModelsConfiguration.builder()
+                .type(REASON)
+                .build();
         this.buildContextTool = Objects.requireNonNull(buildContextTool);
-        this.resourceLoader = Objects.requireNonNull(resourceLoader);
     }
 
     public void setInput(IInput input) {
         this.buildContextTool.setInput(input);
     }
 
-    @Tool(description = "List all the relevant and appropriate concepts that are necessary for the user's request in the context of the Diagram.")
-    public String think(@ToolParam(description = "The user's original prompt") String userPrompt) {
+    public String think(String userPrompt) {
         var context = this.buildContextTool.buildDomainContext();
 
         var systemMessage = new SystemMessage("""
@@ -65,25 +60,26 @@ public class PromptInterpreter {
              Do not hallucinate.
              """);
 
-        var chatClient = ChatClient.builder(this.model)
+        assert this.model.isPresent();
+        var chatClient = ChatClient.builder(this.model.get())
                 .defaultAdvisors(new MessageChatMemoryAdvisor(new InMemoryChatMemory()))
                 .build();
 
         var messages = new ArrayList<Message>();
+
         messages.add(systemMessage);
+        messages.addAll(loadFewShotExamples());
+        messages.add(new UserMessage("Considering the following domain, "+userPrompt+": \n"+context+"\n"+userPrompt));
+
         var prompt = new Prompt(messages);
-
-        loadFewShotExamples(prompt);
-
-        prompt.getInstructions().add(new UserMessage("Considering the following domain, "+userPrompt+": \n"+context+"\n"+userPrompt));
-
         var response = chatClient.prompt(prompt).call().content();
 
         logger.info(response);
         return response;
     }
 
-    private void loadFewShotExamples(Prompt prompt) {
+    private ArrayList<Message> loadFewShotExamples() {
+        var fewShotExamples = new ArrayList<Message>();
         try {
             var promptsFolder = new ClassPathResource("fewshot/prompts/");
             var outputsFolder = new ClassPathResource("fewshot/outputs/");
@@ -99,13 +95,14 @@ public class PromptInterpreter {
                 var promptText = readResourceAsString(promptsFolder.getPath() + promptFiles.get(i));
                 var outputText = readResourceAsString(outputsFolder.getPath() + outputFiles.get(i));
 
-                prompt.getInstructions().add(new UserMessage(promptText));
-                prompt.getInstructions().add(new AssistantMessage(outputText));
+                fewShotExamples.add(new UserMessage(promptText));
+                fewShotExamples.add(new AssistantMessage(outputText));
             }
 
         } catch (Exception e) {
             logger.error("Error while loading few-shot learning: {}", e.getMessage());
         }
+        return fewShotExamples;
     }
 
     private List<String> listResourceFiles(ClassPathResource path) {

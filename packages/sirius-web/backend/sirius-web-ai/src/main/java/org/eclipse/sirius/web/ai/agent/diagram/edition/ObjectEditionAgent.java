@@ -5,6 +5,7 @@ import org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.tool.edition.ObjectEditionTools;
 import org.eclipse.sirius.components.core.api.IInput;
+import org.eclipse.sirius.web.ai.tool.service.ToolCallService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -16,10 +17,12 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.EDITION;
 
@@ -27,7 +30,9 @@ import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.Mode
 public class ObjectEditionAgent implements DiagramAgent {
     private static final Logger logger = LoggerFactory.getLogger(ObjectEditionAgent.class);
 
-    private final ChatModel model;
+    private final ThreadPoolTaskExecutor executor;
+
+    private final Optional<ChatModel> model;
 
     private final List<AiTool> toolClasses = new ArrayList<>();
 
@@ -35,8 +40,11 @@ public class ObjectEditionAgent implements DiagramAgent {
 
     private IInput input;
 
-    public ObjectEditionAgent(ObjectEditionTools objectEditionTools) {
-        this.model = AiModelsConfiguration.buildChatModel(EDITION).get();
+    public ObjectEditionAgent(ObjectEditionTools objectEditionTools, ThreadPoolTaskExecutor executor) {
+        this.executor = executor;
+        this.model = AiModelsConfiguration.builder()
+                .type(EDITION)
+                .build();
         this.toolClasses.add(objectEditionTools);
         this.objectEditionTools = objectEditionTools;
     }
@@ -63,17 +71,14 @@ public class ObjectEditionAgent implements DiagramAgent {
             Do not write any text, just call the correct tools to edit the correct diagram element given in the user's request.
             Before trying to edit a property, you have to verify that it exists in the first place, then choose the most appropriate to edit.
             If the user wants to edit a property that does not exist, find the closest one that could match and edit it accordingly.
-            You can take liberties but do not invent properties and pay attention to their type.
+            You can take liberties but do not invent properties.
             Do not hallucinate.
             """
         );
 
-        var chatClient = ChatClient.builder(this.model)
-                .defaultAdvisors(new MessageChatMemoryAdvisor(new InMemoryChatMemory()))
-                .build();
-
         var prompt = new Prompt(systemMessage, new UserMessage("Here is the object to edit: " + objectId + ". " + instructionPrompt));
 
-        chatClient.prompt(prompt).tools(objectEditionTools).call().content();
+        assert this.model.isPresent();
+        new ToolCallService().computeToolCalls(logger, this.model.get(), prompt, this.executor, this.objectEditionTools);
     }
 }

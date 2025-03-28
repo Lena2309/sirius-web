@@ -1,10 +1,10 @@
 package org.eclipse.sirius.web.ai.tool.creation;
 
 import org.eclipse.sirius.components.collaborative.diagrams.dto.*;
-import org.eclipse.sirius.web.ai.service.AiToolService;
+import org.eclipse.sirius.web.ai.tool.service.AiDiagramService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
-import org.eclipse.sirius.web.ai.util.PairDiagramElement;
-import org.eclipse.sirius.web.ai.util.UUIDConverter;
+import org.eclipse.sirius.web.ai.dto.PairDiagramElement;
+import org.eclipse.sirius.web.ai.codec.UUIDCodec;
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.components.core.api.IPayload;
@@ -29,19 +29,19 @@ public class ObjectCreationTools implements AiTool {
 
     private final EditingContextEventProcessorRegistry editingContextEventProcessorRegistry;
 
-    private final AiToolService aiToolService;
+    private final AiDiagramService aiDiagramService;
 
     private final List<String> objectIds = new ArrayList<>();
 
     public ObjectCreationTools(@Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
-                               AiToolService aiToolService) {
+                               AiDiagramService aiDiagramService) {
         this.editingContextEventProcessorRegistry = Objects.requireNonNull(editingContextEventProcessorRegistry);
-        this.aiToolService = Objects.requireNonNull(aiToolService);
+        this.aiDiagramService = Objects.requireNonNull(aiDiagramService);
     }
 
     @Override
     public void setInput(IInput input) {
-        this.aiToolService.setInput(input);
+        this.aiDiagramService.setInput(input);
     }
 
     public List<String> getObjectIds() {
@@ -60,9 +60,9 @@ public class ObjectCreationTools implements AiTool {
     public List<PairDiagramElement> getAvailableRootObjectCreationOperations() {
         var paletteInput = new GetPaletteInput(
                 UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getDiagramId(),
-                this.aiToolService.getDiagramId()
+                this.aiDiagramService.getEditingContextId(),
+                this.aiDiagramService.getDiagramId(),
+                this.aiDiagramService.getDiagramId()
         );
 
         return getCreationTools(paletteInput);
@@ -72,15 +72,15 @@ public class ObjectCreationTools implements AiTool {
     public List<PairDiagramElement> getAvailableChildCreationOperations(@ToolParam(description = "The parent id.") String parentId) {
         UUID parentIdConverted;
         try {
-            parentIdConverted = UUIDConverter.decompress(parentId);
+            parentIdConverted = new UUIDCodec().decompress(parentId);
         } catch (Exception e) {
             throw new UnsupportedOperationException("Parent id is not in the correct format.");
         }
 
         var paletteInput = new GetPaletteInput(
                 UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getDiagramId(),
+                this.aiDiagramService.getEditingContextId(),
+                this.aiDiagramService.getDiagramId(),
                 parentIdConverted.toString()
         );
 
@@ -104,7 +104,7 @@ public class ObjectCreationTools implements AiTool {
                             .forEach(toolSection -> {
                                 for (var tool : ((ToolSection) toolSection).tools()) {
                                     try {
-                                        creationTools.add(new PairDiagramElement(tool.label(), UUIDConverter.compress(tool.id())));
+                                        creationTools.add(new PairDiagramElement(tool.label(), new UUIDCodec().compress(tool.id())));
                                     } catch (Exception ignored) {}
                                 }
                             });
@@ -125,29 +125,29 @@ public class ObjectCreationTools implements AiTool {
         UUID decompressedOperationId;
 
         try {
-            decompressedOperationId = UUIDConverter.decompress(operationId);
+            decompressedOperationId = new UUIDCodec().decompress(operationId);
         } catch (Exception e) {
             throw new UnsupportedOperationException("Operation id is not in the correct format.");
         }
 
         var diagramInput = new InvokeSingleClickOnDiagramElementToolInput(
                 UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getDiagramId(),
-                this.aiToolService.getDiagramId(),
+                this.aiDiagramService.getEditingContextId(),
+                this.aiDiagramService.getDiagramId(),
+                this.aiDiagramService.getDiagramId(),
                 decompressedOperationId.toString(),
                 0.0,
                 0.0,
                 List.of()
         );
 
-        var newObjectId = this.aiToolService.createNewNode(this.editingContextEventProcessorRegistry, diagramInput, diagramInput.editingContextId(), null);
+        var newObjectId = this.aiDiagramService.createNewNode(this.editingContextEventProcessorRegistry, diagramInput, diagramInput.editingContextId());
 
         if (newObjectId == null) {
             return "Failed to create new Object.";
         }
 
-        var result = objectType + " created at root with id : " + UUIDConverter.compress(newObjectId);
+        var result = objectType + " created at root with id : " + new UUIDCodec().compress(newObjectId);
         this.objectIds.add(result);
 
         return result;
@@ -159,16 +159,16 @@ public class ObjectCreationTools implements AiTool {
         UUID decompressedParentId;
 
         try {
-            decompressedOperationId = UUIDConverter.decompress(operationId);
-            decompressedParentId = UUIDConverter.decompress(parentId);
+            decompressedOperationId = new UUIDCodec().decompress(operationId);
+            decompressedParentId = new UUIDCodec().decompress(parentId);
         } catch (Exception e) {
             throw new UnsupportedOperationException("Parent or Child id is not in the correct format.");
         }
 
         var diagramInput = new InvokeSingleClickOnDiagramElementToolInput(
                 UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getDiagramId(),
+                this.aiDiagramService.getEditingContextId(),
+                this.aiDiagramService.getDiagramId(),
                 decompressedParentId.toString(),
                 decompressedOperationId.toString(),
                 0.0,
@@ -176,13 +176,13 @@ public class ObjectCreationTools implements AiTool {
                 List.of()
         );
 
-        var newObjectId = this.aiToolService.createNewNode(this.editingContextEventProcessorRegistry, diagramInput, diagramInput.editingContextId(), parentId);
+        var newObjectId = this.aiDiagramService.createNewChild(this.editingContextEventProcessorRegistry, diagramInput, diagramInput.editingContextId(), parentId);
 
         if (newObjectId == null) {
             return "Failed to create new Child.";
         }
 
-        var result = childType + ", child of " + parentId + ", created with id : " + UUIDConverter.compress(newObjectId);
+        var result = childType + ", child of " + parentId + ", created with id : " + new UUIDCodec().compress(newObjectId);
         this.objectIds.add(result);
 
         return result;
@@ -193,16 +193,16 @@ public class ObjectCreationTools implements AiTool {
     // ---------------------------------------------------------------------------------------------------------------
 
     @Tool(description = "rename an existing object.")
-    public String renameObject(@ToolParam(description = "The object's Id to rename.") String objectId, String newName) {
+    private String renameObject(@ToolParam(description = "The object's Id to rename.") String objectId, String newName) {
         UUID decompressedObjectId;
 
         try {
-            decompressedObjectId = UUIDConverter.decompress(objectId);
+            decompressedObjectId = new UUIDCodec().decompress(objectId);
         } catch (Exception e) {
             throw new UnsupportedOperationException("Object id is not in the correct format.");
         }
 
-        var node = this.aiToolService.findNode(decompressedObjectId.toString());
+        var node = this.aiDiagramService.findNode(decompressedObjectId.toString());
 
         if (node == null) {
             return "Object was not found";
@@ -220,8 +220,8 @@ public class ObjectCreationTools implements AiTool {
         Objects.requireNonNull(labelId);
         var diagramInput = new EditLabelInput(
                 UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getDiagramId(),
+                this.aiDiagramService.getEditingContextId(),
+                this.aiDiagramService.getDiagramId(),
                 labelId,
                 newName
         );
@@ -230,12 +230,20 @@ public class ObjectCreationTools implements AiTool {
         this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(diagramInput.editingContextId())
                 .ifPresent(processor -> payload.set(processor.handle(diagramInput)));
 
-        var result = new AtomicReference<>("Failed to rename " + objectId + " to " + newName + ".");
+        var failedMessages = "Failed to rename " + objectId + " to " + newName + ". Maybe the correct way is to rename the object through its properties, by editing general properties.";
+        var result = new AtomicReference<>(failedMessages);
+
         payload.get().subscribe(invokePayload -> {
             if (invokePayload instanceof EditLabelSuccessPayload) {
                 result.set("Success");
             }
         });
+
+        node = this.aiDiagramService.findNode(decompressedObjectId.toString());
+
+        if (!Objects.equals(node.getTargetObjectLabel(), newName)) {
+            return failedMessages;
+        }
 
         return result.get();
     }

@@ -1,4 +1,4 @@
-package org.eclipse.sirius.web.ai.util;
+package org.eclipse.sirius.web.ai.codec;
 
 import java.math.BigInteger;
 import java.nio.ByteBuffer;
@@ -6,22 +6,24 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class UUIDConverter {
-    private static final String BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+public class UUIDCodec {
+    private final String BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
-    public static String compress(String stringUUID) {
+    public UUIDCodec() {}
+
+    public String compress(String stringUUID) {
         var uuid = UUID.fromString(stringUUID);
         return compress(uuid);
     }
 
-    public static String compress(UUID uuid) {
+    public String compress(UUID uuid) {
         var bb = ByteBuffer.allocate(Long.BYTES * 2);
         bb.putLong(uuid.getMostSignificantBits());
         bb.putLong(uuid.getLeastSignificantBits());
         return encodeBase58(bb.array());
     }
 
-    public static UUID decompress(String compressedUUID) {
+    public UUID decompress(String compressedUUID) {
         if (compressedUUID.length() != 22) {
             throw new IllegalArgumentException("Invalid Id length: " + compressedUUID.length());
         }
@@ -31,7 +33,7 @@ public class UUIDConverter {
 
     }
 
-    private static String encodeBase58(byte[] input) {
+    private String encodeBase58(byte[] input) {
         BigInteger num = new BigInteger(1, input);
         BigInteger base = BigInteger.valueOf(58);
         List<Character> encoded = new ArrayList<>();
@@ -54,7 +56,7 @@ public class UUIDConverter {
                 .toString();
     }
 
-    private static byte[] decodeBase58(String input) {
+    private byte[] decodeBase58(String input) {
         BigInteger num = BigInteger.ZERO;
         BigInteger base = BigInteger.valueOf(58);
 

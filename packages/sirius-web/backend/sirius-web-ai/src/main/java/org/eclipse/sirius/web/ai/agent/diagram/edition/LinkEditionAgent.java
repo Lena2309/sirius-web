@@ -7,6 +7,7 @@ import org.eclipse.sirius.web.ai.reason.PromptInterpreter;
 import org.eclipse.sirius.web.ai.tool.AiTool;
 import org.eclipse.sirius.web.ai.tool.edition.LinkEditionTools;
 import org.eclipse.sirius.components.core.api.IInput;
+import org.eclipse.sirius.web.ai.tool.service.ToolCallService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
@@ -18,10 +19,12 @@ import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.EDITION;
 
@@ -29,20 +32,23 @@ import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.Mode
 public class LinkEditionAgent implements DiagramAgent {
     private static final Logger logger = LoggerFactory.getLogger(LinkEditionAgent.class);
 
-    private final ChatModel model;
+    private final ThreadPoolTaskExecutor executor;
+
+    private final Optional<ChatModel> model;
 
     private final List<AiTool> toolClasses = new ArrayList<>();
 
     private final LinkEditionTools linkEditionTools;
-    private final PromptInterpreter promptInterpreter;
 
     private IInput input;
 
-    public LinkEditionAgent(LinkEditionTools linkEditionTools, PromptInterpreter promptInterpreter) {
-        this.model = AiModelsConfiguration.buildChatModel(EDITION).get();
+    public LinkEditionAgent(LinkEditionTools linkEditionTools, ThreadPoolTaskExecutor executor) {
+        this.executor = executor;
+        this.model = AiModelsConfiguration.builder()
+                .type(EDITION)
+                .build();
         this.toolClasses.add(linkEditionTools);
         this.linkEditionTools = linkEditionTools;
-        this.promptInterpreter = promptInterpreter;
     }
 
     @Override
@@ -73,12 +79,9 @@ public class LinkEditionAgent implements DiagramAgent {
             """
         );
 
-        var chatClient = ChatClient.builder(this.model)
-                .defaultAdvisors(new MessageChatMemoryAdvisor(new InMemoryChatMemory()))
-                .build();
-
         var prompt = new Prompt(systemMessage, new UserMessage("Here is the link to edit: " + linkId + ". " + instructionPrompt));
 
-        chatClient.prompt(prompt).tools(linkEditionTools).call().content();
+        assert this.model.isPresent();
+        new ToolCallService().computeToolCalls(logger, this.model.get(), prompt, this.executor, this.linkEditionTools);
     }
 }

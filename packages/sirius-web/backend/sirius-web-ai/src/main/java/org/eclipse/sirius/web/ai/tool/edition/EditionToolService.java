@@ -1,7 +1,8 @@
 package org.eclipse.sirius.web.ai.tool.edition;
 
-import org.eclipse.sirius.web.ai.service.AiToolService;
-import org.eclipse.sirius.web.ai.util.UUIDConverter;
+import org.eclipse.sirius.components.collaborative.forms.dto.EditCheckboxInput;
+import org.eclipse.sirius.web.ai.tool.service.AiDiagramService;
+import org.eclipse.sirius.web.ai.codec.UUIDCodec;
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.collaborative.forms.api.FormCreationParameters;
 import org.eclipse.sirius.components.collaborative.forms.api.IFormPostProcessor;
@@ -35,8 +36,8 @@ import java.util.concurrent.atomic.AtomicReference;
 
 @Service
 public class EditionToolService {
+    private static final Logger logger = LoggerFactory.getLogger(EditionToolService.class);
 
-    private static final Logger log = LoggerFactory.getLogger(EditionToolService.class);
     private final IFormPostProcessor formPostProcessor;
 
     private final List<IWidgetDescriptor> widgetDescriptors;
@@ -47,7 +48,7 @@ public class EditionToolService {
 
     private final IPropertiesDefaultDescriptionProvider propertiesDefaultDescriptionProvider;
 
-    private AiToolService aiToolService;
+    private AiDiagramService aiDiagramService;
 
     private FormCreationParameters formCreationParameters = null;
 
@@ -64,8 +65,8 @@ public class EditionToolService {
         this.propertiesDescriptionService = Objects.requireNonNull(propertiesDescriptionService);
     }
 
-    public void setAiToolService(AiToolService aiToolService) {
-        this.aiToolService = aiToolService;
+    public void setDiagramService(AiDiagramService aiDiagramService) {
+        this.aiDiagramService = aiDiagramService;
     }
 
 
@@ -83,8 +84,10 @@ public class EditionToolService {
         }
         FormDescription formDescription = optionalFormDescription.orElse(this.propertiesDefaultDescriptionProvider.getFormDescription());
 
-        this.formCreationParameters = FormCreationParameters.newFormCreationParameters(this.aiToolService.getDiagramId())
-                .editingContext(this.aiToolService.getEditingContext())
+        var optionalEditingContext = this.aiDiagramService.getEditingContext();
+        assert optionalEditingContext.isPresent();
+        this.formCreationParameters = FormCreationParameters.newFormCreationParameters(this.aiDiagramService.getDiagramId())
+                .editingContext(optionalEditingContext.get())
                 .formDescription(formDescription)
                 .object(object)
                 .selection(List.of())
@@ -113,31 +116,34 @@ public class EditionToolService {
         UUID decompressedElementId;
 
         try {
-            decompressedElementId = UUIDConverter.decompress(elementId);
+            decompressedElementId = new UUIDCodec().decompress(elementId);
         } catch (Exception e) {
             throw new UnsupportedOperationException("id is not in the correct format.");
         }
 
+        var optionalEditingContext = this.aiDiagramService.getEditingContext();
+        assert optionalEditingContext.isPresent();
         Optional<Object> optionalObject;
         if (isObject) {
-            var node = this.aiToolService.findNode(decompressedElementId.toString());
+            var node = this.aiDiagramService.findNode(decompressedElementId.toString());
 
             Objects.requireNonNull(node);
-            optionalObject = this.objectService.getObject(this.aiToolService.getEditingContext(), node.getTargetObjectId());
+            optionalObject = this.objectService.getObject(optionalEditingContext.get(), node.getTargetObjectId());
         } else {
-            var edge = this.aiToolService.findEdge(decompressedElementId.toString());
+            var edge = this.aiDiagramService.findEdge(decompressedElementId.toString());
 
             Objects.requireNonNull(edge);
-            optionalObject = this.objectService.getObject(this.aiToolService.getEditingContext(), edge.getTargetObjectId());
+            optionalObject = this.objectService.getObject(optionalEditingContext.get(), edge.getTargetObjectId());
         }
 
-        // TODO: Node trouvé mais pas l'object
         assert optionalObject.isPresent();
         if (this.formCreationParameters == null) {
             this.initializeFormCreationParameters(optionalObject.get());
         }
         if (this.variableManager == null) {
             this.initializeVariableManager();
+        } else {
+            this.variableManager.put(VariableManager.SELF, optionalObject.get());
         }
 
         FormComponentProps formComponentProps = new FormComponentProps(this.variableManager, this.formCreationParameters.getFormDescription(), this.widgetDescriptors);
@@ -151,6 +157,7 @@ public class EditionToolService {
 
     HashMap<String, Map<String, Object>> getProperties(Form form) {
         var properties = new HashMap<String,Map<String, Object>>();
+        var checkboxProperty = new HashMap<String, Object>();
         var singleValueProperty = new HashMap<String, Object>();
         var multipleValueProperty = new HashMap<String, Object>();
 
@@ -158,8 +165,10 @@ public class EditionToolService {
         for (var page : form.getPages()) {
             for (var group : page.getGroups()) {
                 for (var widget : group.getWidgets()) {
-                    if (widget instanceof Radio radio) {
+                    if (widget instanceof Checkbox checkbox) {
+                        checkboxProperty.put(checkbox.getLabel(), checkbox.isValue());
 
+                    } else if (widget instanceof Radio radio) {
                         var options = new ArrayList<String>();
                         for (var option : radio.getOptions()) {
                             options.add(option.getLabel());
@@ -170,8 +179,10 @@ public class EditionToolService {
                     } else if (widget instanceof Textfield textfield) {
                         singleValueProperty.put(textfield.getLabel(), textfield.getValue());
 
-                    } else if (widget instanceof MultiSelect multiSelect) {
+                    } else if (widget instanceof Textarea textarea) {
+                        singleValueProperty.put(textarea.getLabel(), textarea.getValue());
 
+                    } else if (widget instanceof MultiSelect multiSelect) {
                         var options = new ArrayList<String>();
                         for (var option : multiSelect.getOptions()) {
                             options.add(option.getLabel());
@@ -183,8 +194,9 @@ public class EditionToolService {
             }
         }
 
-        properties.put("Single Valued Property", singleValueProperty);
-        properties.put("Multiple Valued Property", multipleValueProperty);
+        properties.put("Checkbox Properties", checkboxProperty);
+        properties.put("Single Valued Properties", singleValueProperty);
+        properties.put("Multiple Valued Properties", multipleValueProperty);
 
         return properties;
     }
@@ -192,15 +204,35 @@ public class EditionToolService {
     Optional<AbstractWidget> getWidget(String objectId, String propertyLabel, boolean isObject) {
         var form = this.getFormForObject(objectId, isObject);
 
-        return form.getPages().get(0).getGroups().get(0).getWidgets().stream()
-                .filter(abstractWidget -> Objects.equals(abstractWidget.getLabel(), propertyLabel))
-                .findFirst();
+        for (var page : form.getPages()) {
+            for (var group : page.getGroups()) {
+                for (var widget : group.getWidgets()) {
+                    if (widget.getLabel().equals(propertyLabel)) {
+                        return Optional.of(widget);
+                    }
+                }
+            }
+        }
+
+        return Optional.empty();
     }
 
 
     // ---------------------------------------------------------------------------------------------------------------
     //                                                PROPERTIES MODIFIERS
     // ---------------------------------------------------------------------------------------------------------------
+
+    String changeCheckboxProperty(boolean checked, AbstractWidget widget, StringBuilder representationId, EditingContextEventProcessorRegistry editingContextEventProcessorRegistry) {
+        var formInput = new EditCheckboxInput(
+                UUID.randomUUID(),
+                this.aiDiagramService.getEditingContextId(),
+                representationId.toString(),
+                widget.getId(),
+                checked
+        );
+
+        return sendPropertyChange(formInput, editingContextEventProcessorRegistry);
+    }
 
     String changePropertySingleValue(String newPropertyValue, AbstractWidget widget, StringBuilder representationId, EditingContextEventProcessorRegistry editingContextEventProcessorRegistry) {
         IInput formInput = null;
@@ -214,18 +246,19 @@ public class EditionToolService {
 
             formInput = new EditRadioInput(
                     UUID.randomUUID(),
-                    this.aiToolService.getEditingContextId(),
+                    this.aiDiagramService.getEditingContextId(),
                     representationId.toString(),
                     radio.getId(),
                     optionId
             );
         }
-        if (widget instanceof Textfield textfield) {
+
+        if ((widget instanceof Textfield) || (widget instanceof Textarea)) {
             formInput = new EditTextfieldInput(
                     UUID.randomUUID(),
-                    this.aiToolService.getEditingContextId(),
+                    this.aiDiagramService.getEditingContextId(),
                     representationId.toString(),
-                    textfield.getId(),
+                    widget.getId(),
                     newPropertyValue
             );
         }
@@ -246,7 +279,7 @@ public class EditionToolService {
 
             formInput = new EditMultiSelectInput(
                     UUID.randomUUID(),
-                    this.aiToolService.getEditingContextId(),
+                    this.aiDiagramService.getEditingContextId(),
                     representationId.toString(),
                     multiSelect.getId(),
                     optionsId
@@ -258,10 +291,10 @@ public class EditionToolService {
 
     private String sendPropertyChange(IInput formInput, EditingContextEventProcessorRegistry editingContextEventProcessorRegistry) {
         var monoPayload = new AtomicReference<Mono<IPayload>>();
-        editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(this.aiToolService.getEditingContextId())
+        editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(this.aiDiagramService.getEditingContextId())
                 .ifPresent(processor -> monoPayload.set(processor.handle(formInput)));
 
-        AtomicReference<String> result = new AtomicReference<>("");
+        AtomicReference<String> result = new AtomicReference<>();
         monoPayload.get().subscribe( payload -> {
             if (payload instanceof ErrorPayload) {
                 result.set("Failure, try something else. Mind the new value type, maybe only numbers or letters are allowed");
@@ -269,8 +302,6 @@ public class EditionToolService {
                 result.set("Success");
             }
         });
-
-        log.info(result.get());
 
         return result.get();
     }

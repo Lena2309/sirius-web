@@ -18,8 +18,10 @@ import org.springframework.ai.tool.annotation.Tool;
 import org.springframework.ai.tool.annotation.ToolParam;
 import org.springframework.stereotype.Service;
 
+import javax.swing.text.html.Option;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.DIAGRAM;
 
@@ -27,7 +29,7 @@ import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.Mode
 public class DeletionAgent implements DiagramAgent {
     private static final Logger logger = LoggerFactory.getLogger(DeletionAgent.class);
 
-    private final ChatModel model;
+    private final Optional<ChatModel> model;
 
     private final List<AiTool> toolClasses = new ArrayList<>();
 
@@ -38,7 +40,9 @@ public class DeletionAgent implements DiagramAgent {
     private IInput input;
 
     public DeletionAgent(ObjectDeletionTools objectDeletionTools, LinkDeletionTools linkDeletionTools) {
-        this.model = AiModelsConfiguration.buildChatModel(DIAGRAM).get();
+        this.model = AiModelsConfiguration.builder()
+                .type(DIAGRAM)
+                .build();
         this.toolClasses.add(objectDeletionTools);
         this.toolClasses.add(linkDeletionTools);
         this.objectDeletionTools = objectDeletionTools;
@@ -68,7 +72,8 @@ public class DeletionAgent implements DiagramAgent {
             """
         );
 
-        var chatClient = ChatClient.builder(this.model)
+        assert this.model.isPresent();
+        var chatClient = ChatClient.builder(this.model.get())
                 .defaultAdvisors(new MessageChatMemoryAdvisor(new InMemoryChatMemory()))
                 .build();
 

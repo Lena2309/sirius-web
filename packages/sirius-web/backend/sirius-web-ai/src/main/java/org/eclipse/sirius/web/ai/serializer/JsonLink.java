@@ -1,4 +1,4 @@
-package org.eclipse.sirius.web.ai.util;
+package org.eclipse.sirius.web.ai.serializer;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

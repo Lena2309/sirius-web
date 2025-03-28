@@ -2,9 +2,9 @@ package org.eclipse.sirius.web.ai.tool.deletion;
 
 import org.eclipse.sirius.components.core.api.IPayload;
 import org.eclipse.sirius.components.core.api.SuccessPayload;
-import org.eclipse.sirius.web.ai.service.AiToolService;
+import org.eclipse.sirius.web.ai.tool.service.AiDiagramService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
-import org.eclipse.sirius.web.ai.util.UUIDConverter;
+import org.eclipse.sirius.web.ai.codec.UUIDCodec;
 import org.eclipse.sirius.components.collaborative.diagrams.dto.DeleteFromDiagramInput;
 import org.eclipse.sirius.components.collaborative.diagrams.dto.DeletionPolicy;
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
@@ -24,17 +24,17 @@ import java.util.concurrent.atomic.AtomicReference;
 public class LinkDeletionTools implements AiTool {
     private final EditingContextEventProcessorRegistry editingContextEventProcessorRegistry;
 
-    private final AiToolService aiToolService;
+    private final AiDiagramService aiDiagramService;
 
     public LinkDeletionTools(@Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
-                             AiToolService aiToolService) {
+                             AiDiagramService aiDiagramService) {
         this.editingContextEventProcessorRegistry = Objects.requireNonNull(editingContextEventProcessorRegistry);
-        this.aiToolService = Objects.requireNonNull(aiToolService);
+        this.aiDiagramService = Objects.requireNonNull(aiDiagramService);
     }
 
     @Override
     public void setInput(IInput input) {
-        this.aiToolService.setInput(input);
+        this.aiDiagramService.setInput(input);
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -46,15 +46,15 @@ public class LinkDeletionTools implements AiTool {
         UUID decompressedLinkId;
 
         try {
-            decompressedLinkId = UUIDConverter.decompress(linkId);
+            decompressedLinkId = new UUIDCodec().decompress(linkId);
         } catch (Exception e) {
             throw new UnsupportedOperationException("Link id is not in the correct format.");
         }
 
         var deleteInput = new DeleteFromDiagramInput(
                 UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getDiagramId(),
+                this.aiDiagramService.getEditingContextId(),
+                this.aiDiagramService.getDiagramId(),
                 List.of(),
                 List.of(decompressedLinkId.toString()),
                 DeletionPolicy.SEMANTIC

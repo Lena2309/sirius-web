@@ -1,8 +1,8 @@
 package org.eclipse.sirius.web.ai.tool.edition;
 
-import org.eclipse.sirius.web.ai.service.AiToolService;
+import org.eclipse.sirius.web.ai.tool.service.AiDiagramService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
-import org.eclipse.sirius.web.ai.util.UUIDConverter;
+import org.eclipse.sirius.web.ai.codec.UUIDCodec;
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.springframework.ai.tool.annotation.Tool;
@@ -18,21 +18,21 @@ import java.util.Objects;
 public class LinkEditionTools implements AiTool {
     private final EditingContextEventProcessorRegistry editingContextEventProcessorRegistry;
 
-    private final AiToolService aiToolService;
+    private final AiDiagramService aiDiagramService;
 
     private final EditionToolService editionToolService;
 
     public LinkEditionTools(@Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
-                              AiToolService aiToolService, EditionToolService editionToolService) {
+                            AiDiagramService aiDiagramService, EditionToolService editionToolService) {
         this.editingContextEventProcessorRegistry = Objects.requireNonNull(editingContextEventProcessorRegistry);
-        this.aiToolService = Objects.requireNonNull(aiToolService);
+        this.aiDiagramService = Objects.requireNonNull(aiDiagramService);
         this.editionToolService = Objects.requireNonNull(editionToolService);
     }
 
     @Override
     public void setInput(IInput input) {
-        this.aiToolService.setInput(input);
-        this.editionToolService.setAiToolService(this.aiToolService);
+        this.aiDiagramService.setInput(input);
+        this.editionToolService.setDiagramService(this.aiDiagramService);
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ public class LinkEditionTools implements AiTool {
 
     @Tool(description = "Edit the value of an existing link property.")
     public String editLinkSingleValueProperty(@ToolParam(description = "The link's Id to edit.") String linkId, @ToolParam(description = "The (existing) property to edit.") String propertyLabel, @ToolParam(description = "The new value.") String newPropertyValue) {
-        var linkEdge = this.aiToolService.findEdge(UUIDConverter.decompress(linkId).toString());
+        var linkEdge = this.aiDiagramService.findEdge(new UUIDCodec().decompress(linkId).toString());
         Objects.requireNonNull(linkEdge);
         var representationId = new StringBuilder("details://?objectIds=[").append(linkEdge.getTargetObjectId()).append("]");
 
@@ -72,7 +72,7 @@ public class LinkEditionTools implements AiTool {
 
     @Tool(description = "Edit the values of an existing link property that can contain multiple ones at once.")
     public String editLinkMultipleValueProperty(@ToolParam(description = "The link's Id to edit.") String linkId, @ToolParam(description = "The (existing) property to edit.") String propertyLabel, @ToolParam(description = "The new values.") List<String> newPropertyValues) {
-        var linkEdge = this.aiToolService.findEdge(UUIDConverter.decompress(linkId).toString());
+        var linkEdge = this.aiDiagramService.findEdge(new UUIDCodec().decompress(linkId).toString());
         Objects.requireNonNull(linkEdge);
         var representationId = new StringBuilder("details://?objectIds=[").append(linkEdge.getTargetObjectId()).append("]");
 

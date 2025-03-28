@@ -6,21 +6,19 @@ import org.eclipse.sirius.web.ai.agent.diagram.*;
 import org.eclipse.sirius.web.ai.reason.PromptInterpreter;
 import org.eclipse.sirius.web.ai.dto.AiRequestInput;
 import org.eclipse.sirius.components.core.api.IInput;
+import org.eclipse.sirius.web.ai.tool.service.ToolCallService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
-import org.springframework.ai.chat.memory.InMemoryChatMemory;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.ModelType.ORCHESTRATION;
 
@@ -28,7 +26,9 @@ import static org.eclipse.sirius.web.ai.configuration.AiModelsConfiguration.Mode
 public class OrchestratorAgent implements Agent {
     private final Logger logger = LoggerFactory.getLogger(OrchestratorAgent.class);
 
-    private final ChatModel model;
+    private final ThreadPoolTaskExecutor executor;
+
+    private final Optional<ChatModel> model;
 
     private final PromptInterpreter promptInterpreter;
 
@@ -39,8 +39,12 @@ public class OrchestratorAgent implements Agent {
     private final LinkCreationAgent linkCreationAgent;
 
     public OrchestratorAgent(PromptInterpreter promptInterpreter, DeletionAgent deletionAgent,
-                             ObjectCreationAgent objectCreationAgent, LinkCreationAgent linkCreationAgent) {
-        this.model = AiModelsConfiguration.buildChatModel(ORCHESTRATION).get();
+                             ObjectCreationAgent objectCreationAgent, LinkCreationAgent linkCreationAgent,
+                             ThreadPoolTaskExecutor executor) {
+        this.executor = executor;
+        this.model = AiModelsConfiguration.builder()
+                .type(ORCHESTRATION)
+                .build();
         this.promptInterpreter = Objects.requireNonNull(promptInterpreter);
         this.deletionAgent = Objects.requireNonNull(deletionAgent);
         this.objectCreationAgent = Objects.requireNonNull(objectCreationAgent);
@@ -69,15 +73,10 @@ public class OrchestratorAgent implements Agent {
 
             var prompt = new Prompt(systemMessage, new UserMessage(concepts));
 
-            var response = ChatClient.builder(this.model)
-                    .build()
-                    .prompt(prompt)
-                    .advisors(new MessageChatMemoryAdvisor(new InMemoryChatMemory()))
-                    .tools(this.deletionAgent, this.objectCreationAgent, this.linkCreationAgent)
-                    .call()
-                    .content();
+            assert this.model.isPresent();
+            new ToolCallService().computeToolCalls(this.logger, this.model.get(), prompt, this.executor, this.objectCreationAgent, this.linkCreationAgent, this.deletionAgent);
 
-            logger.info("Prompt response: {}", response);
+            logger.info("Orchestrator done !");
         }
     }
 }

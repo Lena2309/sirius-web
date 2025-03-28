@@ -1,13 +1,12 @@
 package org.eclipse.sirius.web.ai.tool.creation;
 
-import org.eclipse.sirius.web.ai.service.AiToolService;
+import org.eclipse.sirius.web.ai.tool.service.AiDiagramService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
-import org.eclipse.sirius.web.ai.util.PairDiagramElement;
-import org.eclipse.sirius.web.ai.util.UUIDConverter;
+import org.eclipse.sirius.web.ai.dto.PairDiagramElement;
+import org.eclipse.sirius.web.ai.codec.UUIDCodec;
 import org.eclipse.sirius.components.collaborative.diagrams.dto.GetConnectorToolsInput;
 import org.eclipse.sirius.components.collaborative.diagrams.dto.GetConnectorToolsSuccessPayload;
 import org.eclipse.sirius.components.collaborative.diagrams.dto.InvokeSingleClickOnTwoDiagramElementsToolInput;
-import org.eclipse.sirius.components.collaborative.diagrams.handlers.GetConnectorToolsEventHandler;
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
 import org.eclipse.sirius.components.core.api.IInput;
 import org.eclipse.sirius.components.core.api.IPayload;
@@ -27,20 +26,19 @@ import java.util.concurrent.atomic.AtomicReference;
 public class LinkCreationTools implements AiTool {
     private final EditingContextEventProcessorRegistry editingContextEventProcessorRegistry;
 
-    private final AiToolService aiToolService;
+    private final AiDiagramService aiDiagramService;
 
     private final List<String> linkIds = new ArrayList<>();
 
     public LinkCreationTools(@Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
-                             GetConnectorToolsEventHandler getConnectorToolsEventHandler,
-                             AiToolService aiToolService) {
+                             AiDiagramService aiDiagramService) {
         this.editingContextEventProcessorRegistry = Objects.requireNonNull(editingContextEventProcessorRegistry);
-        this.aiToolService = Objects.requireNonNull(aiToolService);
+        this.aiDiagramService = Objects.requireNonNull(aiDiagramService);
     }
 
     @Override
     public void setInput(IInput input) {
-        this.aiToolService.setInput(input);
+        this.aiDiagramService.setInput(input);
     }
 
     public List<String> getLinkIds() {
@@ -61,24 +59,24 @@ public class LinkCreationTools implements AiTool {
         UUID decompressedTargetId;
 
         try {
-            decompressedSourceId = UUIDConverter.decompress(sourceObjectId);
-            decompressedTargetId = UUIDConverter.decompress(targetObjectId);
+            decompressedSourceId = new UUIDCodec().decompress(sourceObjectId);
+            decompressedTargetId = new UUIDCodec().decompress(targetObjectId);
         } catch (Exception e) {
             throw new UnsupportedOperationException("Source or target object id is not in the correct format.");
         }
 
-        this.aiToolService.refreshDiagram();
+        this.aiDiagramService.refreshDiagram();
         var linkOperations = new ArrayList<PairDiagramElement>();
 
-        var sourceNode = this.aiToolService.findNode(decompressedSourceId.toString());
-        var targetNode = this.aiToolService.findNode(decompressedTargetId.toString());
+        var sourceNode = this.aiDiagramService.findNode(decompressedSourceId.toString());
+        var targetNode = this.aiDiagramService.findNode(decompressedTargetId.toString());
 
         Objects.requireNonNull(sourceNode);
         Objects.requireNonNull(targetNode);
         var connectorInput = new GetConnectorToolsInput(
                 UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getDiagramId(),
+                this.aiDiagramService.getEditingContextId(),
+                this.aiDiagramService.getDiagramId(),
                 sourceNode.getId(),
                 targetNode.getId()
         );
@@ -91,9 +89,9 @@ public class LinkCreationTools implements AiTool {
         payload.get().subscribe(invokePayload -> {
             if (invokePayload instanceof GetConnectorToolsSuccessPayload successPayload) {
                 successPayload.connectorTools()
-                        .forEach(tool -> {
-                            linkOperations.add(new PairDiagramElement(tool.getLabel(), UUIDConverter.compress(tool.getId())));
-                        });
+                        .forEach(tool ->
+                            linkOperations.add(new PairDiagramElement(tool.getLabel(), new UUIDCodec().compress(tool.getId())))
+                        );
             }
         });
 
@@ -106,7 +104,7 @@ public class LinkCreationTools implements AiTool {
 
     @Tool(description = "Call this tool when linking two objects together is absolutely impossible in any way, shape or form. If there is a way to link them (even indirectly), this tool should not be called.")
     public void unableToLink(@ToolParam(description = "The id of the source object.") String sourceObjectId, @ToolParam(description = "The id of the target object.") String targetObjectId) {
-        this.linkIds.add("Not able to link object " + sourceObjectId + " to " + targetObjectId + ". Try something else.");
+        this.linkIds.add("Not able to link object " + sourceObjectId + " to " + targetObjectId + ". Try something else, maybe the objects are not compatible.");
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -120,17 +118,17 @@ public class LinkCreationTools implements AiTool {
         UUID decompressedTargetId;
 
         try {
-            decompressedOperationId = UUIDConverter.decompress(linkOperationId);
-            decompressedSourceId = UUIDConverter.decompress(sourceObjectId);
-            decompressedTargetId = UUIDConverter.decompress(targetObjectId);
+            decompressedOperationId = new UUIDCodec().decompress(linkOperationId);
+            decompressedSourceId = new UUIDCodec().decompress(sourceObjectId);
+            decompressedTargetId = new UUIDCodec().decompress(targetObjectId);
         } catch (Exception e) {
             throw new UnsupportedOperationException("Operation, source or target object id is not in the correct format.");
         }
 
         var diagramInput = new InvokeSingleClickOnTwoDiagramElementsToolInput(
                 UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getDiagramId(),
+                this.aiDiagramService.getEditingContextId(),
+                this.aiDiagramService.getDiagramId(),
                 decompressedSourceId.toString(),
                 decompressedTargetId.toString(),
                 0.0,
@@ -141,15 +139,15 @@ public class LinkCreationTools implements AiTool {
                 List.of()
         );
 
-        var alreadyExistingLinks = this.aiToolService.getDiagram().getEdges();
+        var alreadyExistingLinks = this.aiDiagramService.getDiagram().getEdges();
 
         this.editingContextEventProcessorRegistry.getOrCreateEditingContextEventProcessor(diagramInput.editingContextId())
                 .ifPresent(processor -> processor.handle(diagramInput));
 
-        this.aiToolService.refreshDiagram();
+        this.aiDiagramService.refreshDiagram();
 
         String newLinkId = null;
-        for (var newLink : this.aiToolService.getDiagram().getEdges()) {
+        for (var newLink : this.aiDiagramService.getDiagram().getEdges()) {
             if (!alreadyExistingLinks.contains(newLink)) {
                 newLinkId = newLink.getId();
                 break;
@@ -160,7 +158,7 @@ public class LinkCreationTools implements AiTool {
             return "Failed to create new Link.";
         }
 
-        var result = "Link linking " + sourceObjectId + " and " + targetObjectId + " created with id: " + UUIDConverter.compress(newLinkId);
+        var result = "Link linking " + sourceObjectId + " and " + targetObjectId + " created with id: " + new UUIDCodec().compress(newLinkId);
         this.linkIds.add(result);
 
         return result;

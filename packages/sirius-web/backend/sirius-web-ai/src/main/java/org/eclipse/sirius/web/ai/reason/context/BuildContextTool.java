@@ -8,10 +8,12 @@ import org.eclipse.sirius.components.core.api.IRepresentationDescriptionSearchSe
 import org.eclipse.sirius.components.diagrams.description.DiagramDescription;
 import org.eclipse.sirius.components.diagrams.description.NodeDescription;
 import org.eclipse.sirius.components.diagrams.tools.Palette;
+import org.eclipse.sirius.web.ai.tool.service.AiDiagramService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
-import org.eclipse.sirius.web.ai.service.AiToolService;
 import org.eclipse.sirius.components.core.api.IInput;
-import org.eclipse.sirius.web.ai.util.*;
+import org.eclipse.sirius.web.ai.serializer.ContextJsonFormat;
+import org.eclipse.sirius.web.ai.serializer.JsonLink;
+import org.eclipse.sirius.web.ai.serializer.JsonObject;
 import org.eclipse.sirius.web.application.editingcontext.EditingContext;
 import org.springframework.stereotype.Service;
 
@@ -22,17 +24,17 @@ import java.util.function.Predicate;
 public class BuildContextTool implements AiTool {
     private final IRepresentationDescriptionSearchService representationDescriptionSearchService;
 
-    private final AiToolService aiToolService;
+    private final AiDiagramService aiDiagramService;
 
     public BuildContextTool(IRepresentationDescriptionSearchService representationDescriptionSearchService,
-                            AiToolService aiToolService) {
+                            AiDiagramService aiDiagramService) {
         this.representationDescriptionSearchService = Objects.requireNonNull(representationDescriptionSearchService);
-        this.aiToolService = Objects.requireNonNull(aiToolService);
+        this.aiDiagramService = Objects.requireNonNull(aiDiagramService);
     }
 
     @Override
     public void setInput(IInput input) {
-        this.aiToolService.setInput(input);
+        this.aiDiagramService.setInput(input);
     }
 
     protected record DiagramObject(String objectType, String description, List<String> supertypes) {}
@@ -42,8 +44,10 @@ public class BuildContextTool implements AiTool {
     // ---------------------------------------------------------------------------------------------------------------
 
     private Optional<DiagramDescription> getDiagramDescription() {
-        this.aiToolService.refreshDiagram();
-        return this.representationDescriptionSearchService.findById(this.aiToolService.getEditingContext(), aiToolService.getDiagram().getDescriptionId())
+        this.aiDiagramService.refreshDiagram();
+        var optionalEditingContext = this.aiDiagramService.getEditingContext();
+        assert optionalEditingContext.isPresent();
+        return this.representationDescriptionSearchService.findById(optionalEditingContext.get(), aiDiagramService.getDiagram().getDescriptionId())
                 .filter(DiagramDescription.class::isInstance)
                 .map(DiagramDescription.class::cast);
     }
@@ -95,7 +99,9 @@ public class BuildContextTool implements AiTool {
         });
 
         // Retrieve the EClasses of the domain
-        var packageRegistry = ((EditingContext) aiToolService.getEditingContext()).getDomain().getResourceSet().getPackageRegistry();
+        var optionalEditingContext = this.aiDiagramService.getEditingContext();
+        assert optionalEditingContext.isPresent();
+        var packageRegistry = ((EditingContext) optionalEditingContext.get()).getDomain().getResourceSet().getPackageRegistry();
         var firstDomain = packageRegistry.values().stream().findFirst();
         var diagramObjectsList = firstDomain.filter(EPackage.class::isInstance)
                 .map(EPackage.class::cast)
@@ -115,7 +121,7 @@ public class BuildContextTool implements AiTool {
         return jsonRootObjects;
     }
 
-    private static List<JsonObject> writeRecursiveChildren(String parent, Map<String, List<String>> childrenMapping, Map<String, NodeDescription> objectTypeToNodeDescription, Map<String, String> idToObjectType, List<DiagramObject> diagramObjectsList, int depth) {
+    private List<JsonObject> writeRecursiveChildren(String parent, Map<String, List<String>> childrenMapping, Map<String, NodeDescription> objectTypeToNodeDescription, Map<String, String> idToObjectType, List<DiagramObject> diagramObjectsList, int depth) {
         var children = new ArrayList<JsonObject>();
 
         // TODO: vraiment pas idéal et peut être source d'hallucinations plus tard
@@ -147,11 +153,10 @@ public class BuildContextTool implements AiTool {
                 }
             }
         }
-
         return children;
     }
 
-    private static String getDescription(String objectType, List<DiagramObject> diagramObjectsList) {
+    private String getDescription(String objectType, List<DiagramObject> diagramObjectsList) {
         String description = "";
         for (var diagramObject : diagramObjectsList) {
             if (diagramObject.objectType.equals(objectType)) {
@@ -161,7 +166,7 @@ public class BuildContextTool implements AiTool {
         return description;
     }
 
-    private static List<JsonObject> retrieveRecursiveChildren(String objectType, Map<String, List<String>> childrenMapping, Map<String, NodeDescription> objectTypeToNodeDescription, Map<String, String> idToObjectType, List<DiagramObject> diagramObjectsList, int depth) {
+    private List<JsonObject> retrieveRecursiveChildren(String objectType, Map<String, List<String>> childrenMapping, Map<String, NodeDescription> objectTypeToNodeDescription, Map<String, String> idToObjectType, List<DiagramObject> diagramObjectsList, int depth) {
         var children = new ArrayList<JsonObject>();
 
         if (objectTypeToNodeDescription.containsKey(objectType)) {
@@ -179,7 +184,6 @@ public class BuildContextTool implements AiTool {
                 childrenMapping.put(objectType, childrenTypes);
             }
         }
-
         return children;
     }
 
@@ -195,7 +199,6 @@ public class BuildContextTool implements AiTool {
                 links.add(new JsonLink(extractLinkType(link.getCenterLabelDescription().getId())));
             }
         }
-
         return links;
     }
 
@@ -203,7 +206,7 @@ public class BuildContextTool implements AiTool {
     //                                                     EXTRACTORS
     // ---------------------------------------------------------------------------------------------------------------
 
-    private static void extractObjectTypes(NodeDescription node, Map<String, String> idToObjectType, Map<String, NodeDescription> objectTypeToNodeDescription) {
+    private void extractObjectTypes(NodeDescription node, Map<String, String> idToObjectType, Map<String, NodeDescription> objectTypeToNodeDescription) {
         String objectType;
 
         if (node.getInsideLabelDescription() != null) {
@@ -221,7 +224,7 @@ public class BuildContextTool implements AiTool {
                 });
     }
 
-    private static void extractPaletteObjects(Palette palette, ArrayList<String> childObject) {
+    private void extractPaletteObjects(Palette palette, ArrayList<String> childObject) {
         var toolSections = palette.getToolSections().stream()
                 .filter(toolSection -> !toolSection.getLabel().equals("Show/Hide")).toList();
 
@@ -232,7 +235,7 @@ public class BuildContextTool implements AiTool {
         }
     }
 
-    private static String extractObjectType(String id) {
+    private String extractObjectType(String id) {
         var result = "";
         var strings = id.split("@");
 
@@ -247,11 +250,10 @@ public class BuildContextTool implements AiTool {
                 }
             }
         }
-
         return result;
     }
 
-    private static String extractLinkType(String id) {
+    private String extractLinkType(String id) {
         var result = "";
         var strings = id.split("@");
 
@@ -261,7 +263,6 @@ public class BuildContextTool implements AiTool {
                 break;
             }
         }
-
         return result;
     }
 }

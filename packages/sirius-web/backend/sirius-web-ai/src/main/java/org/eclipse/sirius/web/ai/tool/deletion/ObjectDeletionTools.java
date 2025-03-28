@@ -3,9 +3,9 @@ package org.eclipse.sirius.web.ai.tool.deletion;
 
 import org.eclipse.sirius.components.core.api.IPayload;
 import org.eclipse.sirius.components.core.api.SuccessPayload;
-import org.eclipse.sirius.web.ai.service.AiToolService;
+import org.eclipse.sirius.web.ai.tool.service.AiDiagramService;
 import org.eclipse.sirius.web.ai.tool.AiTool;
-import org.eclipse.sirius.web.ai.util.UUIDConverter;
+import org.eclipse.sirius.web.ai.codec.UUIDCodec;
 import org.eclipse.sirius.components.collaborative.diagrams.dto.DeleteFromDiagramInput;
 import org.eclipse.sirius.components.collaborative.diagrams.dto.DeletionPolicy;
 import org.eclipse.sirius.components.collaborative.editingcontext.EditingContextEventProcessorRegistry;
@@ -25,17 +25,17 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ObjectDeletionTools implements AiTool {
     private final EditingContextEventProcessorRegistry editingContextEventProcessorRegistry;
 
-    private final AiToolService aiToolService;
+    private final AiDiagramService aiDiagramService;
 
     public ObjectDeletionTools(@Lazy EditingContextEventProcessorRegistry editingContextEventProcessorRegistry,
-                               AiToolService aiToolService) {
-        this.aiToolService = Objects.requireNonNull(aiToolService);
+                               AiDiagramService aiDiagramService) {
+        this.aiDiagramService = Objects.requireNonNull(aiDiagramService);
         this.editingContextEventProcessorRegistry = Objects.requireNonNull(editingContextEventProcessorRegistry);
     }
 
     @Override
     public void setInput(IInput input) {
-        this.aiToolService.setInput(input);
+        this.aiDiagramService.setInput(input);
     }
 
     // ---------------------------------------------------------------------------------------------------------------
@@ -47,15 +47,15 @@ public class ObjectDeletionTools implements AiTool {
         UUID decompressedObjectId;
 
         try {
-            decompressedObjectId = UUIDConverter.decompress(objectId);
+            decompressedObjectId = new UUIDCodec().decompress(objectId);
         } catch (Exception e) {
             throw new UnsupportedOperationException("Object id is not in the correct format.");
         }
 
         var deleteInput = new DeleteFromDiagramInput(
                 UUID.randomUUID(),
-                this.aiToolService.getEditingContextId(),
-                this.aiToolService.getDiagramId(),
+                this.aiDiagramService.getEditingContextId(),
+                this.aiDiagramService.getDiagramId(),
                 List.of(decompressedObjectId.toString()),
                 List.of(),
                 DeletionPolicy.SEMANTIC
